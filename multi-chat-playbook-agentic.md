@@ -204,6 +204,149 @@ Same authority and responsibilities. Additions:
 
 ---
 
+## Sub-agent integration
+
+Engineers and the orchestrator can spawn sub-agents to handle
+parallelizable, bounded, independent work and aggregate the
+results. Sub-agents are the fan-out layer below engineer
+sessions. Used well, they parallelize verification and analysis;
+used poorly, they fragment accountability and degrade quality
+invisibly.
+
+### The sub-agent contract
+
+A sub-agent:
+
+- Receives a **focused task** with explicit inputs and an
+  expected output structure
+- Operates **within the parent's scope** — does not expand
+  owned-files, touch files outside the parent's declaration, or
+  alter shared state
+- Reports **structured results** the parent aggregates
+  mechanically (a table, matrix, or list)
+- Does **not commit independently** — the parent session owns
+  the commit; sub-agents produce findings and artifacts the
+  parent assembles
+- Does **not make design decisions** — design questions surface
+  as OPEN to the parent, which routes to Design via the
+  orchestrator
+- Has **bounded fan-out depth** — sub-agents do not spawn their
+  own sub-agents beyond one level, avoiding runaway recursion
+  and unaccountable work
+
+### Model and effort floor
+
+Sub-agent model and effort selection defaults to the spawning
+context's discretion. This has a failure mode observed across
+projects: parents select lower-tier models or reduced effort for
+delegated work as an implicit cost optimization. The work
+sub-agents do is often the substantive work (verification,
+codegen, analysis); degrading it while the coordination layer
+stays strong is backwards.
+
+**Rule: no agent anywhere in the delegation tree runs below the
+orchestrator's model version or effort level.**
+
+- The orchestrator's model and effort (set by the human) is the
+  global floor for the entire tree
+- Any sub-agent or engineer session: model version ≥ the
+  orchestrator's, effort level ≥ the orchestrator's
+- The floor is transitive — a sub-agent spawned by an engineer
+  session the orchestrator dispatched is also bound by it
+  (orchestrator → engineer → sub-agent; the floor holds at every
+  step)
+- Delegating to an equal-or-higher configuration is allowed;
+  delegating to a lower one is not
+- Override framework defaults that select lower models or reduced
+  effort for delegated work — this floor takes precedence over
+  the default delegation heuristic
+
+The orchestrator does not get to make delegated work cheaper by
+making it weaker. If cost genuinely becomes a concern, it
+surfaces as an escalation (a resource decision for the human),
+not a silent downgrade of sub-agent capability. A weaker
+sub-agent producing a result the orchestrator then trusts is
+worse than an honest escalation about cost, because the quality
+loss is invisible until it lands in the repo.
+
+### When to spawn sub-agents
+
+Spawn when work is:
+
+- **Parallelizable** — independent units that can run
+  concurrently (per-unit, per-target, per-section)
+- **Bounded** — each unit has clear inputs and a clear done
+  condition
+- **Aggregatable** — results combine cleanly into the parent's
+  deliverable
+
+Do NOT spawn when work is:
+
+- **Sequential** — unit B needs unit A's output (run in the
+  parent, in order)
+- **Shared-state** — units mutate common state (race conditions;
+  keep in the parent)
+- **Design-bearing** — the work requires a design decision
+  (route to Design, not a sub-agent)
+
+### Generalizable patterns
+
+**Per-unit fan-out.** Work that repeats across a fixed set of
+units (build targets, platforms, locales, modules, environments)
+parallelizes cleanly. One sub-agent per unit performs the work;
+the parent aggregates a per-unit result matrix. The aggregation
+must surface per-unit failures explicitly — an aggregate
+"N-1 of N passed" easily buries the one failure that matters.
+
+**Multi-axis verification.** When verifying one artifact along
+independent axes (e.g., static review vs runtime execution;
+correctness vs performance; spec-conformance vs style), each
+axis is a sub-agent. The parent merges the axes into one
+findings set. Independent axes catch different failure classes;
+running them in parallel is both faster and more thorough than a
+single combined pass.
+
+**Sweep delegation.** Bounded, read-mostly checks (cross-
+reference integrity, dependency audits, dead-code scans) run as
+a sub-agent that returns a findings list while the parent
+proceeds with other work.
+
+**Blast-radius analysis.** Before a cross-cutting change,
+sub-agents inspect different parts of the codebase in parallel
+and report what each would need to change. The parent assembles
+the impact map before editing anything.
+
+### Sub-agent output contract
+
+Sub-agents return structured results the parent parses:
+
+```
+## Sub-agent: <task identifier>
+**Status:** complete | blocked | partial
+**Inputs processed:** <what was examined>
+**Findings:**
+<structured result — table, matrix, or list>
+**Surfaced items:**
+- OPEN: <design questions, if any>
+- FOUND: <bugs, if any>
+**Citations:** <file:line references>
+```
+
+The parent aggregates these into its own deliverable (the PR
+description, verification report, or analysis).
+
+### Sub-agents and the worktree pattern
+
+Sub-agents run within an engineer session's worktree. They
+share the parent's worktree path and test namespace but must
+namespace their own scratch under a per-sub-agent subpath to
+avoid collisions. Sub-agents do not create branches, push, or
+open PRs — the parent session's teardown handles all of that. A
+sub-agent that needs to write a file writes it to the worktree;
+the parent includes it in the commit.
+
+---
+
 ## Setup checklist
 
 Adapt the human-orchestrated setup with these additions:
@@ -769,6 +912,18 @@ In addition to the human-orchestrated anti-patterns:
 - **Letting the orchestrator's audit log grow unread.**
   Reading the log is how the human stays in the loop with
   minimal touch. Skipping it removes the entire premise.
+- **Downgrading sub-agent model or effort to save cost.** The
+  default delegation heuristic drifts toward cheaper models for
+  delegated work, which is exactly the substantive work
+  (verification, codegen, analysis). No agent in the tree runs
+  below the orchestrator's model and effort. Cost concerns
+  escalate as resource decisions; they are never solved by
+  silently weakening sub-agents, because the quality loss is
+  invisible until it lands in the repo.
+- **Burying per-unit failures in fan-out aggregates.** When N
+  sub-agents verify N units, an aggregate "N-1 passed" hides the
+  one failure. The parent surfaces each per-unit failure
+  explicitly via FOUND tags; it does not average them away.
 
 ---
 
