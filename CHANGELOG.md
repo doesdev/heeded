@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Commits and pushes made in a git worktree of an opted-in repo are
+  now checked like any other, even when the repo's marker is hidden.
+  Before, a subagent working in a worktree skipped every check.
 - heeded no longer briefly locks your repo while it checks for changes,
   so your own git commands cannot fail on a lock it holds.
 

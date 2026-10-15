@@ -168,6 +168,8 @@ One record each in `docs/decisions/`:
     supersedes 0002 and 0005.
 25. 0025: git stays a child process; in-process gix measured
     slower with real config.
+26. 0026: a linked worktree of a stamped repo is guarded as
+    that repo.
 
 ## Constraints added on 2026-10-09
 

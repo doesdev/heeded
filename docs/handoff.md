@@ -1,147 +1,104 @@
 # Handoff
 
-Last session: 2026-10-15T05:58Z (Claude Code, claude-opus-5-5,
-session 3, in the same long conversation as session 2)
+Last session: 2026-10-15T06:06Z (Claude Code, claude-opus-5-5,
+session 4)
 
 ## Did
 
-Sessions 1 and 2, in short: the gate, journal, notes folder and
-marker (0001 to 0012); Andrew's rules, then moved into his own
-config as directives (0013, 0020, 0021); the rename to heeded
-(0016); subagents and worktrees (0017, 0018); the commit and
-push guard and its settings (0015, 0019, 0022); `heeded retro`;
-a drafted Cursor adapter (0014). The records hold the detail.
+Sessions 1 to 3, in short: the gate, journal, notes folder and
+marker (0001 to 0012); Andrew's rules, then directives in his
+own config (0013, 0020, 0021); the rename (0016); subagents and
+worktrees (0017, 0018); the commit and push guard (0015, 0019,
+0022, 0023); `heeded retro`, `heeded help`, `heeded config`; a
+drafted Cursor adapter (0014); the port to one Rust binary
+(0024, 0.12.0); git stays a child process with
+`GIT_OPTIONAL_LOCKS=0` (0025); the repo moved to
+`repos/heeded` and 86e9be0 pushed. The records and git log hold
+the detail.
 
-Session 3:
+Session 4, from the gazelle-audio session's evaluation of
+0.12.0 (pasted by Andrew; not in the repo):
 
-- `heeded help` and an interactive `heeded config` (global,
-  local with inherit, show). 0.10.0.
-- 0023, from the gazelle-audio re-assessment: `git tag` and
-  `gh release` ask only when they change something; a git
-  command's repo is its `-C` or last `cd`; `heeded config`
-  from a shell asks the owner; `checks.quiet`; init hides its
-  placeholder `package.json`; the hook leaves early in repos
-  that never opted in. `~/.heeded/voice.md` now defers to a
-  codebase's established style. 0.11.0.
-- 0024, on Andrew's yes: heeded is one Rust binary. `src/`
-  holds the crate (paths, clock, git, notes, snapshot, session,
-  journal, store, settings, commit, guard, gate, harness,
-  scaffold, rework, wizard, cli). `heeded hook` answers both
-  harnesses; both manifests and the three skills call `heeded`
-  by name. Dependencies: serde, serde_json (preserve_order),
-  regex.
-- The Node suite (75 tests) was pointed at the binary with
-  `HEEDED_BIN` and passed before any Node code was removed.
-  Then the tests were ported: `cargo test` runs 81 (unit tests
-  in `src/`, and `tests/hook.rs`, `tests/cli.rs`,
-  `tests/library.rs`, `tests/repo.rs`). `npm run check` now
-  runs `cargo fmt --check`, `cargo clippy -D warnings` and
-  `cargo test`.
-- After the port, cut git calls: the tree fingerprint reads
-  HEAD from `git status --porcelain=v2 --branch`; no side
-  check when the event's folder is the project's; the guard
-  finds the marker by walking up, not with git.
-- The Node code is in `archive/node-0.11/`. `node_modules` is
-  gone. `hooks/hook.js` is now a shim that hands events to
-  `heeded hook`, for sessions started before 0.12.0 (this one).
-- Installed: `cargo install --path .` put `heeded.exe` in
-  `~/.cargo/bin`. `npm uninstall -g heeded` removed the Node
-  package, and its three stale shims in fnm's Node 24 folder
-  were deleted by hand. `heeded` resolves to the binary in Git
-  Bash and PowerShell. Plugin updated to 0.12.0.
-- 0002 and 0005 marked superseded. README, changelog, plan
-  updated.
-- 0025, from a git-latency task Andrew passed on: measured
-  every git call heeded makes in four repos (this one,
-  gazelle-audio, wcmd-main, a synthetic 30,000-file repo). The
-  cost is starting git (19 to 23 ms a call), not its work. A
-  throwaway gix 0.89 prototype in scratch matched git's
-  results but was about twice as slow with real config
-  loaded, and fast only with system and global config
-  ignored. Not ported. Scripts and prototype are in this
-  session's scratch folder, not the repo.
-- Every git call now sets `GIT_OPTIONAL_LOCKS=0`
-  (`src/git.rs`), so heeded's status never takes
-  `index.lock` from under the agent's own git command.
-- A real headless Haiku session on the binary, in a freshly
-  stamped scratch repo: the stop hook (`[heeded hook]`)
-  refused after an edit, the session ran the handoff skill,
-  which ran `heeded moves`, and it wrote a dated handoff.
-- Removed a `timing-state` folder an earlier benchmark had
-  left in `repos/`.
-
-Proof, median of 15 per hook call on this machine: 11 to 12 ms
-in a repo that never opted in (Node was 46); 11 ms before an
-ordinary command in a stamped repo; 36 ms before a push; 68 ms
-after a tool call in a stamped repo (Node was 171). This
-session's own journal kept growing after the switch, through
-the shim.
+- Fixed the one gap it found: with the marker hidden (the
+  `heeded init` default), a commit or push in a linked worktree
+  passed the guard unchecked, no secret scan, identity,
+  attribution, changelog or permission. The guard judged a
+  command by the top of the repo it resolves to, and an
+  untracked marker never reaches a worktree.
+- `src/git.rs`: new `root_and_common`, the top and the shared
+  git folder from one `rev-parse`. `src/guard.rs`: when the
+  resolved repo has no marker, the main checkout (parent of the
+  shared git folder) is checked; if stamped, the command is
+  gated with its settings and notes. No extra git start.
+- `tests/hook.rs`:
+  `the_guard_judges_a_worktree_of_a_hidden_marker_repo_as_that_repo`
+  (hidden marker, worktree under `.claude/worktrees/`; secret
+  denied from inside, via `-C` and via `cd`; clean commit asks,
+  then is allowed with `commit: allow`; push asks). Run against
+  the old guard it failed (stashed `src/`, then restored).
+- Decision 0026, listed in `docs/plan.md`. Changelog line under
+  Unreleased, Fixed.
+- Proof: `npm run check` passed (fmt, clippy, 82 tests). The
+  first runs failed on fmt and on 0026's `Proposed by` format,
+  both fixed. `cargo install --path .` put the new binary in
+  `~/.cargo/bin`.
 
 ## Did not
 
-- Commit this handoff. Two commits were made with Andrew's
-  go-ahead, the first through the guard: 676d89f (archive the
-  playbooks) and 8ae4f9e (heeded at 0.12.0, everything else).
-  This file was rewritten after them and is uncommitted.
-- Push. Nothing has left the machine.
-- Touch `.heeded.json`. After the commits it changed to allow
-  commit and push in this repo, without a tool call from this
-  session, so it was Andrew's edit. Left as he set it, and
-  uncommitted.
-
-- Run anything in Cursor, or build the binary for the work
-  machine.
-- Probe whether a background subagent can raise an `ask`.
-- Touch gazelle-audio.
-- Build the pre-edit gate, the session budget, or any CI.
+- Commit. Uncommitted: `src/git.rs`, `src/guard.rs`,
+  `tests/hook.rs`, `CHANGELOG.md`, `docs/plan.md`, 0026, this
+  file. No version bump (its own commit, when wanted).
+- Push. Nothing left the machine this session.
+- Touch gazelle-audio, or run the evaluation's step 5 (marker,
+  `heeded init --notes .agent`, moving its memory into a
+  handoff) or step 6 (a live subagent turn). Both wait for
+  Andrew's OK.
+- Look at the after-hook's cost in gazelle (137 ms p50 against
+  68 here, a bigger tree).
 
 ## Open
 
-- The repo moved by copying the folder, not moving it. Andrew's
-  move of `repos/my-ai` failed on file locks (a Claude session
-  was open in it), but the script went on and removed the
-  heeded plugin and marketplace. Recovered by copying the whole
-  folder (git, both remotes, the ignored journal; not `target/`)
-  to `repos/heeded`, and re-adding the marketplace and plugin
-  from there. Origin is https://github.com/doesdev/heeded. `repos/my-ai` is left as it is, to be
-  deleted by Andrew once nothing has it open. Claude Code's
-  project folder was copied to `C--Users-andrew-repos-heeded`
-  (memory there already names `repos/heeded`); copy it once
-  more after this session ends so its last turns come along.
-- The stop gate counted Andrew's `.heeded.json` edit as this
-  session's work ("untracked"), because he made it while the
-  session was still finishing its turn. A change by the owner
-  between the last tool call and the stop is indistinguishable
-  from one by an unhooked tool. Harmless here (one more handoff
-  write); worth knowing.
-- The previous version of this file was dated from memory, not
-  from `heeded moves`. Corrected.
-
-- The plugin calls whatever `heeded` is on the `PATH`. A
-  stale binary or a version mismatch with the plugin is not
-  detected. After changing `src/`, run `cargo install --path .`
-  or this repo's own sessions run the old binary.
-- `hooks/hook.js` (the shim) needs deleting once no session
-  started before 0.12.0 is left. It needs Node while it exists.
-- Session state written by the Node hook used sha256 tree
-  fingerprints; the binary uses FNV-1a. A session spanning the
-  switch saw one spurious change, which is why this session's
-  journal shows moves the binary logged right after the swap.
-- gix was ruled out on numbers from one Windows machine with
-  Git for Windows' `core.fscache` on. On Linux or a much larger
-  repo the result could differ; 0025 says when to look again.
+- Andrew's call, from the evaluation: should a repo nested in a
+  stamped one (gazelle's private `.agent` notes checkout) get
+  `push: ask`? Today `git -C .agent push` is not asked, which
+  fits "an unstamped repo is its own business" but not his
+  "ask before anything leaves the machine". Options: notes repo
+  counts as the stamped repo, or push asks wherever a stamped
+  session runs.
+- Unknown: can a background subagent raise an `ask` prompt?
+  The evaluation's step 6, with `commit: ask` for one turn.
+- A worktree outside the stamped repo whose events carry a cwd
+  outside it is still unguarded: the guard finds the project by
+  walking up without git. Claude Code's worktrees live under
+  `.claude/worktrees/`, so not hit today (0026).
+- gazelle's `check` is undecided: about 15 min full, 4 without
+  the browser suite; root has no `.node-version`; must set
+  `GAZELLE_NO_HARDWARE=1`.
+- `repos/my-ai` still exists, for Andrew to delete once nothing
+  has it open. Claude Code's project folder for it was copied
+  to `C--Users-andrew-repos-heeded`; copy once more after the
+  last session there ends.
+- The plugin calls whatever `heeded` is on `PATH`; a stale
+  binary is not detected. After changing `src/`, run
+  `cargo install --path .`.
+- `hooks/hook.js` (a shim for sessions started before 0.12.0)
+  needs deleting once none is left. It needs Node meanwhile.
+- The stop gate counts an owner's edit made while a turn is
+  finishing as the session's work. Harmless, worth knowing.
+- gix was ruled out on one Windows machine; 0025 says when to
+  look again.
 - His `changelog` directive and `checks.changelog` are two
   switches for one rule.
 - His rules and voice live in two unversioned files on this
-  machine; the work machine needs copies, and a binary.
-- The secret patterns are a first guess. One known false
-  positive in gazelle (`__GAZELLE_TOKEN__`).
+  machine; the work machine needs copies and a binary.
+- Secret patterns are a first guess; one known false positive
+  in gazelle (`__GAZELLE_TOKEN__`).
 - Session and guard state files pile up; nothing prunes them.
-- The Edit and Write tools turn a unicode escape for a dash in
-  JavaScript into the character, and heredocs passed to
-  `node -` lose backslashes. Rust's `'\u{2013}'` survived.
+- The Edit and Write tools turn a unicode escape for a dash
+  into the character; Rust's `'\u{2013}'` survives.
 
 ## Next
 
-A fresh evaluation of heeded in gazelle-audio, from a handoff
-Andrew carries there. Then `docs/plan.md`, "Next session".
+Ask Andrew to commit the worktree fix, answer the `.agent`
+push question, and OK gazelle's adoption (the evaluation's
+steps 5 and 6). Then `docs/plan.md`, "Next session".

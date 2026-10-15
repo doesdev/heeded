@@ -29,6 +29,21 @@ pub fn root_of(dir: &Path) -> PathBuf {
     }
 }
 
+/// The top of the repo `dir` is in, and the git folder its worktrees
+/// share, from one git call. `dir` and `None` outside a repo.
+pub fn root_and_common(dir: &Path) -> (PathBuf, Option<PathBuf>) {
+    let Some(out) = git(dir, &["rev-parse", "--show-toplevel", "--git-common-dir"]) else {
+        return (dir.to_path_buf(), None);
+    };
+    let mut found = out.lines().map(str::trim);
+    let top = found
+        .next()
+        .map_or(dir.to_path_buf(), |top| clean(Path::new(top)));
+    let common = found.next().map(|common| resolve(dir, common));
+
+    (top, common)
+}
+
 /// The git folder that every worktree of a repo shares.
 pub fn common_of(dir: &Path) -> Option<PathBuf> {
     let found = git(dir, &["rev-parse", "--git-common-dir"])?;

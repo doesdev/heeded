@@ -11,7 +11,7 @@ use crate::commit::{
     scan_diff, secret_file, secret_in, stages, target_of,
 };
 use crate::consts::MARKER;
-use crate::git::{git, root_of};
+use crate::git::{git, root_and_common};
 use crate::harness::{Event, Outcome};
 use crate::notes::notes_of;
 use crate::paths::{clean, resolve, within};
@@ -261,16 +261,27 @@ run the same command again."
             .filter(|cwd| !cwd.is_empty())
             .map_or(root.clone(), Into::into);
         let where_ = target_of(command, &cwd);
-        let repo = root_of(&where_);
-        let gated = repo == root || repo.join(MARKER).exists();
+        // a linked worktree of a stamped repo is that repo: a hidden marker
+        // never reaches the worktree, so it cannot carry one of its own
+        let (repo, common) = root_and_common(&where_);
+        let stamped = if repo == root || repo.join(MARKER).exists() {
+            Some(repo.clone())
+        } else {
+            common
+                .as_deref()
+                .and_then(Path::parent)
+                .filter(|main| main.join(MARKER).exists())
+                .map(Path::to_path_buf)
+        };
         let own: Vec<&str> = acts
             .into_iter()
-            .filter(|act| gated || *act == "settings")
+            .filter(|act| stamped.is_some() || *act == "settings")
             .collect();
         if own.is_empty() {
             return Outcome::default();
         }
 
+        let repo = stamped.unwrap_or(repo);
         let settings = settings_for(&repo, self.home);
         let id = event.id.as_deref().unwrap_or("undefined");
         if own.contains(&"commit")

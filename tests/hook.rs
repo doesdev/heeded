@@ -714,3 +714,56 @@ fn the_guard_judges_a_git_c_commit_by_the_repo_it_names() {
     assert_eq!(bash("git -C private commit -m notes"), None);
     assert_eq!(bash("git -C private push"), ask);
 }
+
+#[test]
+fn the_guard_judges_a_worktree_of_a_hidden_marker_repo_as_that_repo() {
+    let lab = Lab::new("guard-wt");
+    let session = lab.started(true);
+    let repo = &session.repo;
+    git(repo, &["rm", "-q", "--cached", MARKER]);
+    write(repo, ".git/info/exclude", &format!("{MARKER}\n"));
+    git(repo, &["commit", "-q", "-m", "Hide the marker"]);
+    let tree = repo.join(".claude").join("worktrees").join("agent-a3");
+    let at = tree.display().to_string();
+    git(repo, &["worktree", "add", "-q", "-b", "side", &at]);
+    assert!(!exists(&tree.join(MARKER)));
+
+    let bash = |cwd: &str, command: &str| {
+        decision(&session.hook(
+            "PreToolUse",
+            json!({ "cwd": cwd, "tool_name": "Bash", "tool_input": { "command": command } }),
+        ))
+    };
+    let here = repo.display().to_string();
+    let ask = Some("ask".to_string());
+    let deny = Some("deny".to_string());
+
+    write(
+        &tree,
+        "lib/b.js",
+        &format!("export const k = \"{}\"\n", fake_aws()),
+    );
+    git(&tree, &["add", "-A"]);
+    let leaked = bash(&at, "git commit -m \"Add b\"");
+    assert_eq!(leaked.0, deny);
+    assert!(leaked.1.contains("lib/b.js: an AWS access key"));
+    assert_eq!(bash(&here, &format!("git -C \"{at}\" commit -m b")).0, deny);
+    assert_eq!(
+        bash(&here, &format!("cd \"{at}\" && git commit -m b")).0,
+        deny
+    );
+
+    write(&tree, "lib/b.js", "export const k = 1\n");
+    git(&tree, &["add", "-A"]);
+    assert_eq!(bash(&at, "git commit -m \"Add b\"").0, ask);
+    assert_eq!(bash(&at, "git push -u origin side").0, ask);
+    assert_eq!(bash(&here, &format!("git -C \"{at}\" push")).0, ask);
+
+    write(
+        repo,
+        MARKER,
+        &json!({ "notes": NOTES, "permission": { "commit": "allow" } }).to_string(),
+    );
+    assert_eq!(bash(&at, "git commit -m \"Add b\""), (None, String::new()));
+    assert_eq!(bash(&at, "git push").0, ask);
+}
