@@ -1,6 +1,6 @@
 # Handoff
 
-Last session: 2026-10-15T05:49Z (Claude Code, claude-opus-5-5,
+Last session: 2026-10-15T05:58Z (Claude Code, claude-opus-5-5,
 session 3, in the same long conversation as session 2)
 
 ## Did
@@ -97,18 +97,17 @@ the shim.
 
 ## Open
 
-- The repo is moving. Its remote is now
-  https://github.com/doesdev/heeded (`origin`); the old one is
-  kept as the remote `my-ai`. The folder moves from
-  `repos/my-ai` to `repos/heeded` after this session closes,
-  by a script Andrew runs: move the folder, copy Claude Code's
-  project folder (`~/.claude/projects/C--Users-andrew-repos-my-ai`,
-  memory and transcripts) to `C--Users-andrew-repos-heeded`,
-  and re-add the plugin marketplace from the new path. A copy
-  of the project folder was made before the move; the script
-  copies again so the end of this session is not lost. The
-  old project folder is kept until the new one is confirmed.
-
+- The repo moved by copying the folder, not moving it. Andrew's
+  move of `repos/my-ai` failed on file locks (a Claude session
+  was open in it), but the script went on and removed the
+  heeded plugin and marketplace. Recovered by copying the whole
+  folder (git, both remotes, the ignored journal; not `target/`)
+  to `repos/heeded`, and re-adding the marketplace and plugin
+  from there. Origin is https://github.com/doesdev/heeded. `repos/my-ai` is left as it is, to be
+  deleted by Andrew once nothing has it open. Claude Code's
+  project folder was copied to `C--Users-andrew-repos-heeded`
+  (memory there already names `repos/heeded`); copy it once
+  more after this session ends so its last turns come along.
 - The stop gate counted Andrew's `.heeded.json` edit as this
   session's work ("untracked"), because he made it while the
   session was still finishing its turn. A change by the owner
