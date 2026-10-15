@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- Ready-made binaries for Windows, Linux and macOS come with each
+  release, so you can install heeded without a Rust toolchain.
+- `heeded --version` says which build you have.
+
 ### Fixed
 
 - Commits and pushes made in a git worktree of an opted-in repo are

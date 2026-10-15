@@ -368,6 +368,22 @@ fn help_prints_the_summary_or_one_command_and_succeeds() {
     }
 }
 
+#[test]
+fn version_says_which_build_this_is() {
+    let lab = Lab::new("version");
+    let wanted = format!(
+        "heeded {}
+",
+        env!("CARGO_PKG_VERSION")
+    );
+
+    for args in [&["version"][..], &["--version"], &["init", "--version"]] {
+        let ran = lab.bin(&lab.tmp, args);
+        assert_eq!(ran.status, 0, "{args:?}");
+        assert_eq!(ran.stdout, wanted, "{args:?}");
+    }
+}
+
 fn global(key: &str) -> String {
     git_out(Path::new("."), &["config", "--global", key])
         .trim()

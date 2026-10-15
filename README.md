@@ -21,7 +21,16 @@ claude plugin marketplace add /path/to/heeded
 claude plugin install heeded@heeded
 ```
 
-The first line puts `heeded` on the `PATH`. The plugin's hooks and
+The first line puts `heeded` on the `PATH`. Without a Rust
+toolchain, download the binary for your machine from the
+[releases](https://github.com/doesdev/heeded/releases) instead,
+check it against `SHA256SUMS`, rename it `heeded` (`heeded.exe`
+on Windows) and put it on the `PATH`. Builds are for Windows x64,
+Linux x64 (static, any distro) and macOS on Apple silicon and
+Intel. They are not signed: on Windows, `Unblock-File` clears the
+downloaded-file mark, and on macOS, `xattr -d
+com.apple.quarantine heeded` does. `heeded --version` says which
+one you have. The plugin's hooks and
 skills call it by name, so both must be installed, and a new build
 of the binary takes effect in the next tool call. After a version
 bump, also run `claude plugin marketplace update heeded` and
@@ -129,6 +138,11 @@ points at exist. Everything else is left alone.
 ```sh
 npm run check
 ```
+
+CI runs the same check on Windows, Linux and macOS for every push.
+Pushing a tag `vX.Y.Z` that matches `Cargo.toml` builds the release
+binaries and publishes them with the notes from that version's
+changelog section.
 
 That runs `cargo fmt --check`, `cargo clippy` and `cargo test`; npm
 is only the name the check goes by (decision 0003). The Node

@@ -172,6 +172,8 @@ One record each in `docs/decisions/`:
     that repo.
 27. 0027: so is a repo that holds a stamped repo's notes,
     bar the changelog reminder.
+28. 0028: release binaries are built by GitHub Actions on a
+    version tag; CI runs the check on three systems.
 
 ## Constraints added on 2026-10-09
 

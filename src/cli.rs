@@ -26,6 +26,7 @@ Usage: heeded <command> [dir] [options]
   moves    what changed since the last handoff
   retro    log how a finished task turned out
   config   step through your settings, global or for this repo
+  version  which build this is
   help     this, or more about one command (heeded help config)
 
 [dir] defaults to the current folder; any folder in a repo means
@@ -94,7 +95,7 @@ pub struct Args {
 }
 
 const VALUED: [&str; 5] = ["notes", "task", "outcome", "class", "note"];
-const SWITCHES: [&str; 5] = ["tracked", "global", "local", "show", "help"];
+const SWITCHES: [&str; 6] = ["tracked", "global", "local", "show", "help", "version"];
 
 pub fn parse(argv: &[String]) -> Result<Args, String> {
     let mut args = Args::default();
@@ -344,6 +345,11 @@ pub fn run(argv: &[String]) -> Result<(), String> {
     let name = args.positionals.first().map(String::as_str);
     let arg = args.positionals.get(1).map(String::as_str);
     let unknown = |name: &str| format!("No command \"{name}\".\n\n{SUMMARY}");
+
+    if name == Some("version") || args.has("version") {
+        println!("heeded {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
 
     let topic = match (name, args.has("help")) {
         (None, _) => Some(None),

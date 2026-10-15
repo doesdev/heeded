@@ -1,6 +1,6 @@
 # Handoff
 
-Last session: 2026-10-15T06:14Z (Claude Code, claude-opus-5-5,
+Last session: 2026-10-15T15:05Z (Claude Code, claude-opus-5-5,
 session 4)
 
 ## Did
@@ -63,14 +63,35 @@ Session 4, from the gazelle-audio session's evaluation of
 - Decision 0027; 0026 marked amended by it. Changelog line and
   plan entry.
 - Proof: `npm run check` passed (fmt, clippy, 83 tests).
-  `cargo install --path .` reinstalled the binary.
+  Committed as 2a0e263 and pushed, each on Andrew's yes. A brief
+  for the gazelle session (steps 5 and 6, OK'd by Andrew) was
+  given in chat for him to carry.
+- Then release binaries, Andrew's proposal (0028), macOS on his
+  ask. `heeded version` / `--version` (`src/cli.rs`, test
+  `version_says_which_build_this_is`).
+  `.github/workflows/check.yml`: `npm run check` on Windows,
+  Linux, macOS per push and PR. `.github/workflows/release.yml`:
+  on a `v*` tag, checks tag equals `Cargo.toml` and the changelog
+  has the section, drafts a release with it as notes, builds
+  Windows x64 (static CRT), Linux x64 musl, macOS arm64 and x64,
+  uploads, adds `SHA256SUMS`, publishes. Only `actions/checkout`
+  v7.0.1, pinned to 3d3c42e5. README install and develop
+  sections, changelog lines, plan entry.
+- Proof, locally only: tag check and changelog awk dry-run for
+  v0.12.0 (match, section printed) and v9.9.9 (empty);
+  static-CRT Windows release build runs and references no
+  `vcruntime140.dll`; `npm run check` passed (84 tests);
+  binary reinstalled, `heeded --version` prints `heeded 0.12.0`.
 
 ## Did not
 
-- Commit the notes-checkout change: `src/guard.rs`,
-  `tests/hook.rs`, `CHANGELOG.md`, `docs/plan.md`, 0026, 0027,
+- Commit the release work: `src/cli.rs`, `tests/cli.rs`,
+  `.github/`, `README.md`, `CHANGELOG.md`, `docs/plan.md`, 0028,
   this file. No version bump (its own commit, when wanted).
-- Push it. Only 6d996fa has left the machine.
+- Run either workflow. Neither has run; the suite has never run
+  on Linux or macOS. Only 6d996fa and 2a0e263 left the machine.
+- Cut a release. Needs a version bump commit, then a tag push,
+  each on Andrew's yes.
 - Touch gazelle-audio, or run the evaluation's step 5 (marker,
   `heeded init --notes .agent`, moving its memory into a
   handoff) or step 6 (a live subagent turn). Both wait for
@@ -96,8 +117,10 @@ Session 4, from the gazelle-audio session's evaluation of
   has it open. Claude Code's project folder for it was copied
   to `C--Users-andrew-repos-heeded`; copy once more after the
   last session there ends.
+- The release binaries are unsigned; a managed work machine may
+  refuse them. Check there before relying on it.
 - The plugin calls whatever `heeded` is on `PATH`; a stale
-  binary is not detected. After changing `src/`, run
+  binary is not detected (`--version` now makes it possible). After changing `src/`, run
   `cargo install --path .`.
 - `hooks/hook.js` (a shim for sessions started before 0.12.0)
   needs deleting once none is left. It needs Node meanwhile.
@@ -117,6 +140,6 @@ Session 4, from the gazelle-audio session's evaluation of
 
 ## Next
 
-Ask Andrew to commit the notes-checkout change, then OK
-gazelle's adoption (the evaluation's steps 5 and 6). Then
-`docs/plan.md`, "Next session".
+Ask Andrew to commit and push the release work, then read the
+first CI run on all three systems and fix what fails there.
+Gazelle's adoption is with the gazelle session.
