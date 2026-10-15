@@ -1,6 +1,6 @@
 # Handoff
 
-Last session: 2026-10-15T05:44Z (Claude Code, claude-opus-5-5,
+Last session: 2026-10-15T05:49Z (Claude Code, claude-opus-5-5,
 session 3, in the same long conversation as session 2)
 
 ## Did
@@ -96,6 +96,18 @@ the shim.
 - Build the pre-edit gate, the session budget, or any CI.
 
 ## Open
+
+- The repo is moving. Its remote is now
+  https://github.com/doesdev/heeded (`origin`); the old one is
+  kept as the remote `my-ai`. The folder moves from
+  `repos/my-ai` to `repos/heeded` after this session closes,
+  by a script Andrew runs: move the folder, copy Claude Code's
+  project folder (`~/.claude/projects/C--Users-andrew-repos-my-ai`,
+  memory and transcripts) to `C--Users-andrew-repos-heeded`,
+  and re-add the plugin marketplace from the new path. A copy
+  of the project folder was made before the move; the script
+  copies again so the end of this session is not lost. The
+  old project folder is kept until the new one is confirmed.
 
 - The stop gate counted Andrew's `.heeded.json` edit as this
   session's work ("untracked"), because he made it while the
