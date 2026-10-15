@@ -227,7 +227,22 @@ run the same command again."
         ))
     }
 
+    // a subagent's ask never reaches the owner (gazelle saw a background
+    // one's commit go straight through), so it is refused and sent back
     pub fn check(&self, event: &Event) -> Outcome {
+        let outcome = self.judge(event);
+        let agent = event.agent.as_deref().is_some_and(|id| !id.is_empty());
+
+        match outcome.ask {
+            Some(why) if agent => Outcome::deny(format!(
+                "{why} A subagent cannot get that OK. Stop and report back; \
+the main session will ask."
+            )),
+            _ => outcome,
+        }
+    }
+
+    fn judge(&self, event: &Event) -> Outcome {
         // the nearest marker, found without git: most tool calls end here
         let dir = clean(Path::new(&event.dir));
         let Some(root) = dir.ancestors().find(|at| at.join(MARKER).exists()) else {

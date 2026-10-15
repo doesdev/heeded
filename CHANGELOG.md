@@ -8,7 +8,16 @@
   release, so you can install heeded without a Rust toolchain.
 - `heeded --version` says which build you have.
 
+### Changed
+
+- Where you would be asked before a commit or push, a subagent is now
+  refused and told to report back, because a background subagent's
+  request never reached you and went through unasked.
+
 ### Fixed
+
+- Writing a file through the shell no longer asks for your OK just
+  because the file's text mentions a git commit or push.
 
 - Commits and pushes made in a git worktree of an opted-in repo are
   now checked like any other, even when the repo's marker is hidden.

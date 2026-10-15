@@ -828,3 +828,70 @@ fn the_guard_judges_the_notes_checkout_as_the_repo_it_belongs_to() {
     assert_eq!(bash(&format!("git -C \"{at}\" push")).0, ask);
     assert_eq!(bash("git -C private push").0, None);
 }
+
+#[test]
+fn a_subagent_is_refused_where_the_session_would_be_asked() {
+    let lab = Lab::new("guard-agent");
+    let session = lab.started(true);
+    let repo = &session.repo;
+    write(repo, "lib/a.js", "x\n");
+    git(repo, &["add", "-A"]);
+    let pre = |agent: Option<&str>, tool: &str, input: serde_json::Value| {
+        let mut event = json!({ "tool_name": tool, "tool_input": input });
+        if let Some(id) = agent {
+            event["agent_id"] = json!(id);
+        }
+        decision(&session.hook("PreToolUse", event))
+    };
+    let bash =
+        |agent: Option<&str>, command: &str| pre(agent, "Bash", json!({ "command": command }));
+    let ask = Some("ask".to_string());
+    let deny = Some("deny".to_string());
+
+    assert_eq!(bash(None, "git commit -m x").0, ask);
+    let sent = bash(Some("a4"), "git commit -m x");
+    assert_eq!(sent.0, deny);
+    assert!(sent.1.contains("a commit needs the owner's OK"));
+    assert!(sent.1.contains("report back"));
+    assert_eq!(bash(Some("a4"), "git push").0, deny);
+    assert_eq!(
+        pre(
+            Some("a4"),
+            "Edit",
+            json!({ "file_path": repo.join(MARKER).display().to_string() })
+        )
+        .0,
+        deny
+    );
+    assert_eq!(bash(Some("a4"), "npm run check"), (None, String::new()));
+    assert_eq!(bash(Some(""), "git commit -m x").0, ask);
+
+    write(
+        repo,
+        MARKER,
+        &json!({ "notes": NOTES, "permission": { "commit": "allow" } }).to_string(),
+    );
+    assert_eq!(bash(Some("a4"), "git commit -m x"), (None, String::new()));
+}
+
+#[test]
+fn a_heredoc_written_to_a_file_is_not_the_command() {
+    let lab = Lab::new("guard-heredoc");
+    let session = lab.started(true);
+    let bash = |command: &str| {
+        decision(&session.hook(
+            "PreToolUse",
+            json!({ "tool_name": "Bash", "tool_input": { "command": command } }),
+        ))
+        .0
+    };
+
+    assert_eq!(
+        bash("cat > replay.mjs <<'EOF'\nrun('git commit -m x')\nEOF\nnode replay.mjs"),
+        None
+    );
+    assert_eq!(
+        bash("bash <<'EOF'\ngit commit -m x\nEOF"),
+        Some("ask".to_string())
+    );
+}

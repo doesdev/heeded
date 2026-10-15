@@ -60,6 +60,8 @@ static SAFE_FILES: LazyLock<Regex> =
 static QUIET: LazyLock<Regex> = LazyLock::new(|| {
     re(r"(^|/)(test|tests|__tests__|docs|\.github)/|(^|/)test\.[cm]?js$|\.md$|(^|/)\.[^/]+$")
 });
+static HEREDOC: LazyLock<Regex> = LazyLock::new(|| re(r#"<<-?\s*(?:'(\w+)'|"(\w+)"|(\w+))"#));
+const WRITERS: [&str; 2] = ["cat", "tee"];
 static SECRETS: LazyLock<Vec<(&'static str, Regex)>> = LazyLock::new(|| {
     vec![
         ("a private key", re(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
@@ -108,7 +110,49 @@ fn settings_change(command: &str) -> bool {
     })
 }
 
+// the command without the bodies of heredocs that cat or tee only write
+// out: a file that mentions git commit is not a commit. A heredoc fed to
+// anything else (a shell, python, node) may run what it holds, so it stays.
+fn spoken(command: &str) -> String {
+    let mut kept: Vec<&str> = Vec::new();
+    let mut owed: Vec<(&str, bool)> = Vec::new();
+
+    for line in command.split('\n') {
+        if let Some(&(end, drop)) = owed.first() {
+            let done = line.trim() == end;
+            if !drop || done {
+                kept.push(line);
+            }
+            if done {
+                owed.remove(0);
+            }
+            continue;
+        }
+
+        kept.push(line);
+        for found in HEREDOC.captures_iter(line) {
+            let at = found.get(0).map_or(0, |all| all.start());
+            if line[..at].ends_with('<') {
+                continue;
+            }
+            let end = (1..=3)
+                .find_map(|group| found.get(group))
+                .map_or("", |word| word.as_str());
+            let feeds = SEPARATORS
+                .split(&line[..at])
+                .last()
+                .and_then(|piece| piece.split_whitespace().next())
+                .unwrap_or("");
+            owed.push((end, WRITERS.contains(&feeds)));
+        }
+    }
+
+    kept.join("\n")
+}
+
 pub fn classify(command: &str) -> Vec<&'static str> {
+    let command = spoken(command);
+    let command = command.as_str();
     let acts: [(&str, bool); 6] = [
         ("commit", COMMIT.is_match(command)),
         ("push", PUSH.is_match(command)),
@@ -317,6 +361,14 @@ mod tests {
             ("git log --grep commit", &[]),
             ("echo commit", &[]),
             ("npm run check", &[]),
+            ("cat > a.mjs <<'EOF'\ngit commit -m x\nEOF", &[]),
+            ("cat <<EOF > a.sh\ngit push\nEOF\nnode a.mjs", &[]),
+            ("tee a.txt <<-\"END\"\n\tgit commit\n\tEND", &[]),
+            ("cat > a.txt <<EOF\ngit commit\nEOF\ngit push", &["push"]),
+            ("bash <<'EOF'\ngit commit -m x\nEOF", &["commit"]),
+            ("python - <<'EOF'\nrun('git push')\nEOF", &["push"]),
+            ("git commit -F - <<'EOF'\nSubject\nEOF", &["commit"]),
+            ("cat <<< \"git commit\"", &["commit"]),
             ("", &[]),
         ];
 

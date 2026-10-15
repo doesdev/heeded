@@ -174,6 +174,10 @@ One record each in `docs/decisions/`:
     bar the changelog reminder.
 28. 0028: release binaries are built by GitHub Actions on a
     version tag; CI runs the check on three systems.
+29. 0029: a subagent is refused where the session would be
+    asked.
+30. 0030: heredoc bodies that cat or tee write out are not
+    classified.
 
 ## Constraints added on 2026-10-09
 
