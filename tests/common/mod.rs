@@ -106,11 +106,25 @@ fn run(cwd: &Path, args: &[&str], env: &[(&str, &Path)], input: Option<&str>) ->
     }
 }
 
+// the temp folder as git reports it: macOS's is behind a symlink
+// (/var is /private/var) and a Windows runner's has a short name
+// (RUNNER~1)
+fn real(path: &Path) -> PathBuf {
+    let full = std::fs::canonicalize(path).unwrap();
+    let text = full.display().to_string();
+
+    match text.strip_prefix(r"\\?\") {
+        Some(plain) if !plain.starts_with("UNC") => PathBuf::from(plain),
+        _ => full,
+    }
+}
+
 impl Lab {
     pub fn new(name: &str) -> Lab {
         let tmp = std::env::temp_dir().join(format!("heeded-test-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
+        let tmp = real(&tmp);
 
         Lab {
             state: tmp.join("state"),

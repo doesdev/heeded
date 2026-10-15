@@ -1,6 +1,6 @@
 # Handoff
 
-Last session: 2026-10-15T15:05Z (Claude Code, claude-opus-5-5,
+Last session: 2026-10-15T15:12Z (Claude Code, claude-opus-5-5,
 session 4)
 
 ## Did
@@ -82,14 +82,30 @@ Session 4, from the gazelle-audio session's evaluation of
   static-CRT Windows release build runs and references no
   `vcruntime140.dll`; `npm run check` passed (84 tests);
   binary reinstalled, `heeded --version` prints `heeded 0.12.0`.
+- First CI run (38757674317, on 38be4d0): Linux passed; Windows
+  and macOS failed in `tests/cli.rs` (cargo stopped there, so the
+  other suites have not run on either). Causes: (1) the tests
+  build paths from the temp folder, which on macOS is behind a
+  symlink (`/var` is `/private/var`) and on the Windows runner
+  has a short name (`RUNNER~1`), while heeded prints git's real
+  path; (2) the Windows runner checks out with CRLF, so the
+  compiled-in templates were CRLF. Fixes, uncommitted: the lab
+  canonicalizes its temp folder (`real` in
+  `tests/common/mod.rs`); `.gitattributes` with
+  `* text=auto eol=lf`. Reproduced (1) locally with an 8.3 temp
+  path: old harness 3 failures, new harness all suites pass.
+- Found while fixing: this session's Python edits wrote CRLF into
+  CHANGELOG.md, README.md, docs/handoff.md, docs/plan.md,
+  src/cli.rs and src/guard.rs, and some of it was committed.
+  Converted back and renormalized; `git diff --cached
+  --ignore-cr-at-eol` shows only this file's real edits. Python
+  on Windows needs `newline=''` when writing.
 
 ## Did not
 
-- Commit the release work: `src/cli.rs`, `tests/cli.rs`,
-  `.github/`, `README.md`, `CHANGELOG.md`, `docs/plan.md`, 0028,
-  this file. No version bump (its own commit, when wanted).
-- Run either workflow. Neither has run; the suite has never run
-  on Linux or macOS. Only 6d996fa and 2a0e263 left the machine.
+- Commit the CI fixes below. 38be4d0 (Build release binaries in
+  CI) was committed and pushed on Andrew's yes. No version bump.
+- See a green CI run. The release workflow has never run.
 - Cut a release. Needs a version bump commit, then a tag push,
   each on Andrew's yes.
 - Touch gazelle-audio, or run the evaluation's step 5 (marker,
@@ -117,6 +133,11 @@ Session 4, from the gazelle-audio session's evaluation of
   has it open. Claude Code's project folder for it was copied
   to `C--Users-andrew-repos-heeded`; copy once more after the
   last session there ends.
+- heeded compares the project root it finds by walking up from
+  the event's folder with the top git reports. If a harness ever
+  sends an aliased folder (a symlink, an 8.3 name), the two would
+  differ and the guard could misjudge `repo == root`. Not seen in
+  practice; Node's cwd is already the real path.
 - The release binaries are unsigned; a managed work machine may
   refuse them. Check there before relying on it.
 - The plugin calls whatever `heeded` is on `PATH`; a stale
@@ -140,6 +161,7 @@ Session 4, from the gazelle-audio session's evaluation of
 
 ## Next
 
-Ask Andrew to commit and push the release work, then read the
-first CI run on all three systems and fix what fails there.
-Gazelle's adoption is with the gazelle session.
+Ask Andrew to commit and push the CI fixes, then read the run on
+all three systems; fix what the suites that have not yet run on
+Windows and macOS turn up. Gazelle's adoption is with the gazelle
+session.
