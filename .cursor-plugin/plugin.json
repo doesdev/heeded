@@ -1,0 +1,7 @@
+{
+  "name": "heeded",
+  "version": "0.12.0",
+  "description": "Workflow guardrails that get installed instead of remembered",
+  "author": { "name": "Andrew Carpenter" },
+  "hooks": "./hooks/cursor-hooks.json"
+}

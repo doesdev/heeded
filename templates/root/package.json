@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "scripts": {
+    "check": "node -e \"console.error('check is not wired up yet'); process.exit(1)\""
+  }
+}

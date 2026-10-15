@@ -1,0 +1,11 @@
+{
+  "name": "heeded",
+  "owner": { "name": "Andrew Carpenter" },
+  "plugins": [
+    {
+      "name": "heeded",
+      "source": "./",
+      "description": "Workflow guardrails that get installed instead of remembered"
+    }
+  ]
+}

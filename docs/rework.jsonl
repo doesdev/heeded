@@ -1,0 +1,1 @@
+{"ts":"2026-10-09T06:57:54.495Z","task":"heeded init, first version (0.2.0)","outcome":"reworked","failureClass":"wrong-assumption","note":"Put the plugin's files in docs/ and assumed that folder was free; the second repo's docs/ was its user manual."}

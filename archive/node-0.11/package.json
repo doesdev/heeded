@@ -1,0 +1,22 @@
+{
+  "name": "heeded",
+  "version": "0.11.0",
+  "description": "Workflow guardrails that get installed instead of remembered",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "heeded": "bin/heeded.js"
+  },
+  "scripts": {
+    "test": "mvt --verbose",
+    "lint": "standard",
+    "lint:fix": "standard --fix",
+    "check": "npm run lint && npm test"
+  },
+  "author": "Andrew Carpenter",
+  "license": "MIT",
+  "devDependencies": {
+    "mvt": "^5.0.0",
+    "standard": "^17.1.2"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "heeded hook"
+      }
+    ],
+    "sessionStart": [
+      {
+        "command": "heeded hook"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "heeded hook"
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "heeded hook",
+        "matcher": "Write|Shell"
+      }
+    ],
+    "stop": [
+      {
+        "command": "heeded hook",
+        "loop_limit": 5
+      }
+    ]
+  }
+}
