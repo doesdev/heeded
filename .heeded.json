@@ -1,1 +1,7 @@
-{ "notes": "docs" }
+{
+  "notes": "docs",
+  "permission": {
+    "commit": "allow",
+    "push": "allow"
+  }
+}

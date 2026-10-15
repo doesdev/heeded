@@ -1,6 +1,6 @@
 # Handoff
 
-Last session: 2026-10-15T05:46Z (Claude Code, claude-opus-5-5,
+Last session: 2026-10-15T05:44Z (Claude Code, claude-opus-5-5,
 session 3, in the same long conversation as session 2)
 
 ## Did
@@ -79,8 +79,16 @@ the shim.
 
 ## Did not
 
-- Commit anything. The two archive renames from session 1 are
-  staged; everything else is untracked.
+- Commit this handoff. Two commits were made with Andrew's
+  go-ahead, the first through the guard: 676d89f (archive the
+  playbooks) and 8ae4f9e (heeded at 0.12.0, everything else).
+  This file was rewritten after them and is uncommitted.
+- Push. Nothing has left the machine.
+- Touch `.heeded.json`. After the commits it changed to allow
+  commit and push in this repo, without a tool call from this
+  session, so it was Andrew's edit. Left as he set it, and
+  uncommitted.
+
 - Run anything in Cursor, or build the binary for the work
   machine.
 - Probe whether a background subagent can raise an `ask`.
@@ -88,6 +96,15 @@ the shim.
 - Build the pre-edit gate, the session budget, or any CI.
 
 ## Open
+
+- The stop gate counted Andrew's `.heeded.json` edit as this
+  session's work ("untracked"), because he made it while the
+  session was still finishing its turn. A change by the owner
+  between the last tool call and the stop is indistinguishable
+  from one by an unhooked tool. Harmless here (one more handoff
+  write); worth knowing.
+- The previous version of this file was dated from memory, not
+  from `heeded moves`. Corrected.
 
 - The plugin calls whatever `heeded` is on the `PATH`. A
   stale binary or a version mismatch with the plugin is not
@@ -115,6 +132,5 @@ the shim.
 
 ## Next
 
-`docs/plan.md`, "Next session": Andrew reviews the overnight
-list, then the first commit if he says so, which will be the
-guard's first real use under the binary.
+A fresh evaluation of heeded in gazelle-audio, from a handoff
+Andrew carries there. Then `docs/plan.md`, "Next session".
