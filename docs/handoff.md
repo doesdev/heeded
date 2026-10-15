@@ -1,6 +1,6 @@
 # Handoff
 
-Last session: 2026-10-15T06:06Z (Claude Code, claude-opus-5-5,
+Last session: 2026-10-15T06:14Z (Claude Code, claude-opus-5-5,
 session 4)
 
 ## Did
@@ -40,15 +40,37 @@ Session 4, from the gazelle-audio session's evaluation of
   Unreleased, Fixed.
 - Proof: `npm run check` passed (fmt, clippy, 82 tests). The
   first runs failed on fmt and on 0026's `Proposed by` format,
-  both fixed. `cargo install --path .` put the new binary in
-  `~/.cargo/bin`.
+  both fixed. Committed as 6d996fa and pushed, each on Andrew's
+  yes.
+- Then the evaluation's `.agent` question. Two options were put
+  to Andrew (notes checkout counts as the stamped repo, or push
+  asks from a stamped session wherever it lands); he chose the
+  first. `src/guard.rs`: a repo with no marker, not a worktree
+  of a stamped one, that holds the folder the marker's `notes`
+  names and does not hold the stamped repo, is judged with the
+  stamped repo's settings (scan, identity, attribution,
+  permission), with the changelog reminder skipped. New
+  `inside` helper: a path on another drive is never inside.
+- `tests/hook.rs`:
+  `the_guard_judges_the_notes_checkout_as_the_repo_it_belongs_to`
+  (nested notes repo: commit and push ask; secret in notes
+  denied; with `commit: allow` and `checks.changelog`, a
+  non-doc notes commit passes; notes outside the repo: push
+  asks, and the old nested repo is then left alone). It failed
+  on the old guard, and with the changelog skip disabled (the
+  first version did not, because `.md` files are quiet anyway;
+  a `.rs` file was added).
+- Decision 0027; 0026 marked amended by it. Changelog line and
+  plan entry.
+- Proof: `npm run check` passed (fmt, clippy, 83 tests).
+  `cargo install --path .` reinstalled the binary.
 
 ## Did not
 
-- Commit. Uncommitted: `src/git.rs`, `src/guard.rs`,
-  `tests/hook.rs`, `CHANGELOG.md`, `docs/plan.md`, 0026, this
-  file. No version bump (its own commit, when wanted).
-- Push. Nothing left the machine this session.
+- Commit the notes-checkout change: `src/guard.rs`,
+  `tests/hook.rs`, `CHANGELOG.md`, `docs/plan.md`, 0026, 0027,
+  this file. No version bump (its own commit, when wanted).
+- Push it. Only 6d996fa has left the machine.
 - Touch gazelle-audio, or run the evaluation's step 5 (marker,
   `heeded init --notes .agent`, moving its memory into a
   handoff) or step 6 (a live subagent turn). Both wait for
@@ -58,13 +80,9 @@ Session 4, from the gazelle-audio session's evaluation of
 
 ## Open
 
-- Andrew's call, from the evaluation: should a repo nested in a
-  stamped one (gazelle's private `.agent` notes checkout) get
-  `push: ask`? Today `git -C .agent push` is not asked, which
-  fits "an unstamped repo is its own business" but not his
-  "ask before anything leaves the machine". Options: notes repo
-  counts as the stamped repo, or push asks wherever a stamped
-  session runs.
+- A push from a stamped session into some other unstamped repo
+  (not its notes, not a worktree) is still not asked; Andrew's
+  directive text is all that covers it (0027 chose not to).
 - Unknown: can a background subagent raise an `ask` prompt?
   The evaluation's step 6, with `commit: ask` for one turn.
 - A worktree outside the stamped repo whose events carry a cwd
@@ -99,6 +117,6 @@ Session 4, from the gazelle-audio session's evaluation of
 
 ## Next
 
-Ask Andrew to commit the worktree fix, answer the `.agent`
-push question, and OK gazelle's adoption (the evaluation's
-steps 5 and 6). Then `docs/plan.md`, "Next session".
+Ask Andrew to commit the notes-checkout change, then OK
+gazelle's adoption (the evaluation's steps 5 and 6). Then
+`docs/plan.md`, "Next session".

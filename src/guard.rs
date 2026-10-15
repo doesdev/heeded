@@ -36,6 +36,22 @@ fn config(where_: &Path, key: &str) -> String {
         .to_string()
 }
 
+fn inside(dir: &Path, path: &Path) -> bool {
+    let rel = within(dir, path);
+
+    !rel.starts_with("..") && !Path::new(&rel).is_absolute()
+}
+
+// a repo of its own that holds the stamped repo's notes, and not the
+// stamped repo itself
+fn holds_notes(repo: &Path, root: &Path) -> bool {
+    !inside(repo, root)
+        && notes_of(root)
+            .ok()
+            .flatten()
+            .is_some_and(|notes| inside(repo, &notes))
+}
+
 struct Incoming {
     files: Vec<String>,
     diffs: Vec<String>,
@@ -147,6 +163,7 @@ impl<'a> Guard<'a> {
         where_: &Path,
         command: &str,
         settings: &Value,
+        changelog: bool,
     ) -> Option<String> {
         let coming = incoming(where_, stages(command));
         let (name, email) = (config(where_, "user.name"), config(where_, "user.email"));
@@ -175,7 +192,7 @@ impl<'a> Guard<'a> {
                 problems.join("; and ")
             ));
         }
-        if settings["checks"]["changelog"].as_bool() != Some(true) {
+        if !changelog || settings["checks"]["changelog"].as_bool() != Some(true) {
             return None;
         }
 
@@ -262,16 +279,23 @@ run the same command again."
             .map_or(root.clone(), Into::into);
         let where_ = target_of(command, &cwd);
         // a linked worktree of a stamped repo is that repo: a hidden marker
-        // never reaches the worktree, so it cannot carry one of its own
+        // never reaches the worktree, so it cannot carry one of its own.
+        // So is the checkout holding its notes, bar the changelog.
         let (repo, common) = root_and_common(&where_);
+        let mut notes = false;
         let stamped = if repo == root || repo.join(MARKER).exists() {
             Some(repo.clone())
+        } else if let Some(main) = common
+            .as_deref()
+            .and_then(Path::parent)
+            .filter(|main| main.join(MARKER).exists())
+        {
+            Some(main.to_path_buf())
+        } else if holds_notes(&repo, &root) {
+            notes = true;
+            Some(root.clone())
         } else {
-            common
-                .as_deref()
-                .and_then(Path::parent)
-                .filter(|main| main.join(MARKER).exists())
-                .map(Path::to_path_buf)
+            None
         };
         let own: Vec<&str> = acts
             .into_iter()
@@ -285,7 +309,7 @@ run the same command again."
         let settings = settings_for(&repo, self.home);
         let id = event.id.as_deref().unwrap_or("undefined");
         if own.contains(&"commit")
-            && let Some(refusal) = self.commit(id, &repo, &where_, command, &settings)
+            && let Some(refusal) = self.commit(id, &repo, &where_, command, &settings, !notes)
         {
             return Outcome::deny(refusal);
         }

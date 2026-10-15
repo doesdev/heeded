@@ -767,3 +767,64 @@ fn the_guard_judges_a_worktree_of_a_hidden_marker_repo_as_that_repo() {
     assert_eq!(bash(&at, "git commit -m \"Add b\""), (None, String::new()));
     assert_eq!(bash(&at, "git push").0, ask);
 }
+
+#[test]
+fn the_guard_judges_the_notes_checkout_as_the_repo_it_belongs_to() {
+    let lab = Lab::new("guard-notes");
+    let session = lab.started(true);
+    let repo = &session.repo;
+    let inner = repo.join("private");
+    write(repo, ".gitignore", "private\n");
+    std::fs::create_dir_all(&inner).unwrap();
+    git(&inner, &["init", "-q"]);
+    git(&inner, &["config", "user.email", "test@example.com"]);
+    write(&inner, "handoff.md", "# Handoff\n");
+    let mark = |extra: serde_json::Value| {
+        let mut marker = json!({ "notes": "private" });
+        marker
+            .as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().cloned().unwrap_or_default());
+        write(repo, MARKER, &marker.to_string());
+    };
+    let bash = |command: &str| {
+        decision(&session.hook(
+            "PreToolUse",
+            json!({ "tool_name": "Bash", "tool_input": { "command": command } }),
+        ))
+    };
+    let ask = Some("ask".to_string());
+    let deny = Some("deny".to_string());
+
+    mark(json!({}));
+    git(&inner, &["add", "-A"]);
+    assert_eq!(bash("git -C private commit -m notes").0, ask);
+    assert_eq!(bash("cd private && git push").0, ask);
+
+    write(&inner, "plan.md", &format!("the key was {}\n", fake_aws()));
+    let leaked = bash("git -C private add -A && git -C private commit -m notes");
+    assert_eq!(leaked.0, deny);
+    assert!(leaked.1.contains("plan.md: an AWS access key"));
+    std::fs::remove_file(inner.join("plan.md")).unwrap();
+
+    mark(json!({ "permission": { "commit": "allow" }, "checks": { "changelog": true } }));
+    write(&inner, "probe.rs", "fn main() {}\n");
+    git(&inner, &["add", "-A"]);
+    assert_eq!(
+        bash("git -C private commit -m notes"),
+        (None, String::new())
+    );
+    assert_eq!(bash("git -C private push").0, ask);
+
+    let outside = lab.dir("notes");
+    git(&outside, &["init", "-q"]);
+    write(&outside, "handoff.md", "# Handoff\n");
+    write(
+        repo,
+        MARKER,
+        &json!({ "notes": outside.display().to_string() }).to_string(),
+    );
+    let at = outside.display().to_string();
+    assert_eq!(bash(&format!("git -C \"{at}\" push")).0, ask);
+    assert_eq!(bash("git -C private push").0, None);
+}

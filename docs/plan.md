@@ -170,6 +170,8 @@ One record each in `docs/decisions/`:
     slower with real config.
 26. 0026: a linked worktree of a stamped repo is guarded as
     that repo.
+27. 0027: so is a repo that holds a stamped repo's notes,
+    bar the changelog reminder.
 
 ## Constraints added on 2026-10-09
 

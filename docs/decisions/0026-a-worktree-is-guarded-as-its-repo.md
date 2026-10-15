@@ -1,7 +1,7 @@
 # 0026: A linked worktree is guarded as the repo it belongs to
 
 Date: 2026-10-15T06:03Z
-Status: accepted
+Status: amended by 0027
 Proposed by: model (the gazelle-audio session's evaluation of 0.12.0, Opus 5.5)
 Ratified by: claude-opus-5-5
 
@@ -51,4 +51,5 @@ top was an accident of 0023, not a choice.
   inside the repo, so this does not bite there.
 - A repo nested in a stamped one, like gazelle's `.agent`
   notes checkout, is still its own business: its push is not
-  asked. Whether it should be is Andrew's call.
+  asked. Whether it should be is Andrew's call. (Settled by
+  0027: it is guarded as the stamped repo.)

@@ -7,6 +7,10 @@
 - Commits and pushes made in a git worktree of an opted-in repo are
   now checked like any other, even when the repo's marker is hidden.
   Before, a subagent working in a worktree skipped every check.
+- Commits and pushes in the git checkout that holds an opted-in repo's
+  notes are now checked by that repo's settings: secrets are caught,
+  and a push asks first. The changelog reminder stays out of notes
+  commits.
 - heeded no longer briefly locks your repo while it checks for changes,
   so your own git commands cannot fail on a lock it holds.
 
