@@ -1,6 +1,6 @@
 [package]
 name = "heeded"
-version = "0.12.0"
+version = "0.13.0"
 edition = "2024"
 description = "Workflow guardrails that get installed instead of remembered"
 license = "MIT"

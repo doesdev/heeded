@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-15
+
 ### Added
 
 - Ready-made binaries for Windows, Linux and macOS come with each
