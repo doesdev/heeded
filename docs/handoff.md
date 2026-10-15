@@ -1,6 +1,6 @@
 # Handoff
 
-Last session: 2026-10-15T15:18Z (Claude Code, claude-opus-5-5,
+Last session: 2026-10-15T20:42Z (Claude Code, claude-opus-5-5,
 session 4)
 
 ## Did
@@ -72,13 +72,24 @@ commit and push below was on Andrew's yes.
 
 ## Did not
 
-- Commit 0029, 0030 and this file: `src/guard.rs`,
-  `src/commit.rs`, `tests/hook.rs`, `CHANGELOG.md`,
-  `docs/plan.md`, the two records.
-- Push 17076c5, so CI has not run with the fixes. No green run
-  on Windows or macOS yet; the release workflow has never run.
-- Bump the version or cut a release (bump is its own commit, the
-  tag push needs Andrew's yes).
+- Commit this file's last edit. 0029 and 0030 were committed as
+  814a794 (Refuse subagents, skip file heredocs) on Andrew's yes;
+  this line was written after it.
+- 17076c5 and 814a794 were pushed on Andrew's yes; CI run
+  38759669670 passed on Windows, Linux and macOS, every suite.
+- Nothing: the version bump bf45da2 (Cargo.toml, Cargo.lock,
+  both plugin manifests, changelog heading) and the annotated tag
+  v0.13.0 were pushed on Andrew's yes. The release workflow's
+  first run (38761011643) passed every job and published
+  https://github.com/doesdev/heeded/releases/tag/v0.13.0 with
+  four binaries (Windows x64, Linux x64 musl, macOS arm64 and
+  x64) and `SHA256SUMS`. The Windows binary, downloaded from the
+  release into scratch, matched its checksum and printed
+  `heeded 0.13.0`. The check run on bf45da2 passed. The local
+  plugin is at 0.13.0 from the next session; the installed binary
+  is 0.13.0. This file's edits after bf45da2 are uncommitted.
+- The other three release binaries were not run; no Linux or Mac
+  machine here.
 - Look into the after-hook cost further (90 ms in gazelle, 68
   here).
 
@@ -98,8 +109,9 @@ commit and push below was on Andrew's yes.
 - A worktree outside the stamped repo whose events carry a cwd
   outside it is unguarded (0026); Claude Code's worktrees are
   inside the repo.
-- Release binaries are unsigned; a managed work machine may
-  refuse them.
+- heeded does not run on the work machine yet, so the Cursor
+  adapter stays untried. Recorded in `docs/plan.md`, "On the work
+  machine".
 - The plugin calls whatever `heeded` is on `PATH`; a stale
   binary is not detected (`--version` now makes it possible).
   After changing `src/`, run `cargo install --path .`.
@@ -116,11 +128,10 @@ commit and push below was on Andrew's yes.
 - His `changelog` directive and `checks.changelog` are two
   switches for one rule.
 - His rules and voice live in two unversioned files on this
-  machine; the work machine needs copies and a binary.
+  machine.
 - Session and guard state files pile up; nothing prunes them.
 
 ## Next
 
-Ask Andrew to commit 0029 and 0030, then push both commits and
-read CI on all three systems; fix what the suites that have not
-yet run on Windows and macOS turn up.
+`docs/plan.md`, "Next session": the pre-edit gate first, which
+needs Andrew's answer on what a trigger path is.

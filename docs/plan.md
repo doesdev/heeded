@@ -299,5 +299,7 @@ already fires. Then check the two reported Windows bugs
 (session-start context dropped, stop follow-up lost) on the
 real version. 0014 lists the shapes and what was not
 confirmed. The `Cursor` adapter in `src/harness.rs` is the draft
-to correct. The work machine needs a Rust toolchain to build
-the binary, or a binary copied from this one.
+to correct.
+
+Blocked as of 2026-10-15: heeded does not run there yet, so the
+Cursor adapter cannot be tried there.
