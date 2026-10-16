@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-16
+
 ### Fixed
 
 - Committing the handoff on its own no longer makes the stop gate ask
