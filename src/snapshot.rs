@@ -28,6 +28,7 @@ pub struct Snapshot {
     pub file: Option<String>,
     pub journal: Option<String>,
     pub handoff: Option<String>,
+    pub head: Option<String>,
     pub tree: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub side: Option<Side>,
@@ -93,9 +94,9 @@ pub fn read_status(status: &str) -> (String, Vec<(String, String)>) {
     (head, paths)
 }
 
-/// One fingerprint of HEAD and every changed file, leaving out `ours` and
+/// HEAD, and one fingerprint of every changed file, leaving out `ours` and
 /// any nested repo that shows up as a whole folder. One git call.
-pub fn hash_tree(root: &Path, ours: &[String]) -> Option<String> {
+pub fn head_and_tree(root: &Path, ours: &[String]) -> Option<(String, String)> {
     let status = git(
         root,
         &["status", "--porcelain=v2", "--branch", "-z", "-uall"],
@@ -107,13 +108,50 @@ pub fn hash_tree(root: &Path, ours: &[String]) -> Option<String> {
         .map(|(xy, file)| json!([xy, file, hash_file(&root.join(&file))]))
         .collect();
 
-    Some(fingerprint(
-        json!([head.trim(), entries]).to_string().as_bytes(),
+    Some((
+        head.trim().to_string(),
+        fingerprint(json!(entries).to_string().as_bytes()),
     ))
 }
 
-// another worktree of the same repo, when that is where the event happened
-fn side_of(dir: &Path, root: &Path, cwd: Option<&str>) -> Option<Side> {
+/// One fingerprint of HEAD and every changed file.
+pub fn hash_tree(root: &Path, ours: &[String]) -> Option<String> {
+    let (head, tree) = head_and_tree(root, ours)?;
+
+    Some(fingerprint(format!("{head} {tree}").as_bytes()))
+}
+
+/// Did HEAD move onto commits that hold more than `ours`. Committing the
+/// handoff records no new work, so it must not make the handoff stale.
+pub fn moved(root: &Path, from: Option<&str>, to: Option<&str>, ours: &[String]) -> bool {
+    let (Some(from), Some(to)) = (from, to) else {
+        return false;
+    };
+    if from == to {
+        return false;
+    }
+    let Some(out) = git(root, &["diff", "--name-only", "-z", from, to]) else {
+        return true;
+    };
+
+    out.split('\0')
+        .filter(|file| !file.is_empty())
+        .any(|file| !ours.iter().any(|own| own == file))
+}
+
+/// The handoff and journal, relative to the repo: never work of their own.
+pub fn ours_of(now: &Snapshot) -> Vec<String> {
+    let root = Path::new(&now.root);
+
+    [&now.file, &now.journal]
+        .into_iter()
+        .flatten()
+        .map(|own| within(root, Path::new(own)))
+        .collect()
+}
+
+// the top of another worktree of the same repo, when `cwd` is in one
+fn other_worktree(dir: &Path, root: &Path, cwd: Option<&str>) -> Option<PathBuf> {
     let cwd = clean(Path::new(cwd?));
     if cwd == clean(dir) || cwd == root {
         return None;
@@ -125,14 +163,35 @@ fn side_of(dir: &Path, root: &Path, cwd: Option<&str>) -> Option<Side> {
     }
 
     let common = common_of(root)?;
-    if common_of(&side)? != common {
-        return None;
-    }
+    (common_of(&side)? == common).then_some(side)
+}
 
-    Some(Side {
-        root: side.display().to_string(),
-        tree: hash_tree(&side, &[]),
-    })
+fn side(root: &Path) -> Side {
+    Side {
+        root: root.display().to_string(),
+        tree: hash_tree(root, &[]),
+    }
+}
+
+// another worktree of the same repo, when that is where the event happened
+fn side_of(dir: &Path, root: &Path, cwd: Option<&str>) -> Option<Side> {
+    other_worktree(dir, root, cwd).map(|found| side(&found))
+}
+
+/// The project's own checkout as a side, for a session kept in a worktree.
+pub fn project_side(dir: &Path) -> Side {
+    side(&root_of(dir))
+}
+
+/// Where a session that starts in `cwd` keeps its notes: a worktree of the
+/// project that is stamped itself, so its branch carries its own handoff.
+/// `None` means the project. A worktree with no marker of its own (the
+/// marker is hidden) shares the project's.
+pub fn checkout_of(dir: &Path, cwd: Option<&str>) -> Option<PathBuf> {
+    let root = root_of(dir);
+    let side = other_worktree(dir, &root, cwd)?;
+
+    notes_of(&side).ok().flatten().map(|_| side)
 }
 
 pub fn snapshot(dir: &Path, cwd: Option<&str>) -> Result<Snapshot, String> {
@@ -141,22 +200,21 @@ pub fn snapshot(dir: &Path, cwd: Option<&str>) -> Result<Snapshot, String> {
     let private = private_of(&root)?;
     let file = private.as_ref().map(|private| private.join(HANDOFF));
     let journal = private.as_ref().map(|private| private.join(JOURNAL));
-    let ours: Vec<String> = [&file, &journal]
-        .into_iter()
-        .flatten()
-        .map(|own| within(&root, own))
-        .collect();
     let show = |path: &Option<PathBuf>| path.as_ref().map(|path| path.display().to_string());
-
-    Ok(Snapshot {
+    let mut now = Snapshot {
         handoff: file.as_ref().and_then(|file| hash_file(file)),
-        tree: hash_tree(&root, &ours),
         side: side_of(dir, &root, cwd),
         notes: show(&notes),
         file: show(&file),
         journal: show(&journal),
         root: root.display().to_string(),
-    })
+        ..Snapshot::default()
+    };
+    let (head, tree) = head_and_tree(&root, &ours_of(&now)).unzip();
+    now.head = head;
+    now.tree = tree;
+
+    Ok(now)
 }
 
 /// What is wrong with a handoff's shape, by name.

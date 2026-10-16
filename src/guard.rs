@@ -243,14 +243,22 @@ impl<'a> Guard<'a> {
             })
             .unwrap_or_default();
 
-        if !changelog_owed(&coming.files, notes_at, &quiet) || self.nagged(id, &coming.files) {
+        // this runs before the command does, so a changelog line the same
+        // command writes and stages is not on disk yet: take its word
+        let writes = stages(command) && command.to_lowercase().contains("changelog");
+        if writes
+            || !changelog_owed(&coming.files, notes_at, &quiet)
+            || self.nagged(id, &coming.files)
+        {
             return None;
         }
 
         Some(format!(
             "heeded: this commit does not touch {CHANGELOG}. If it changes anything a user \
-can see, do or be affected by, add a line under \"## [Unreleased]\" first. If it does not, \
-run the same command again."
+can see, do or be affected by, add a line under \"## [Unreleased]\" first. This is checked \
+before the command runs, against what is staged or about to be, so a line the same command \
+writes is only seen when the command names {CHANGELOG} and stages it. If the commit needs no \
+line, run the same command again."
         ))
     }
 

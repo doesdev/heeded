@@ -941,3 +941,140 @@ fn private_notes_hold_the_handoff_and_never_reach_git() {
     assert!(why.contains("private notes"));
     assert!(why.contains(handoff));
 }
+
+#[test]
+fn committing_the_handoff_alone_does_not_make_it_stale() {
+    let lab = Lab::new("commit-handoff");
+    let session = lab.started(true);
+    let repo = &session.repo;
+    let commit = |files: &[&str], message: &str| {
+        let mut add = vec!["add"];
+        add.extend_from_slice(files);
+        git(repo, &add);
+        git(repo, &["commit", "-q", "-m", message]);
+    };
+
+    session.edit("lib/work.js", "work\n");
+    session.bash("Commit the work", || commit(&["lib/work.js"], "Work"));
+    session.edit(HANDOFF, "# Handoff\n\nCommitted the work.\n");
+    assert_eq!(session.stop().status, 0);
+
+    session.prompt();
+    session.bash("Commit the handoff", || commit(&[HANDOFF], "Handoff"));
+    assert_eq!(session.stop().status, 0);
+    session.bash("Amend it", || {
+        write(repo, HANDOFF, "# Handoff\n\nCommitted the work, amended.\n");
+        git(repo, &["add", HANDOFF]);
+        git(repo, &["commit", "-q", "--amend", "-m", "Handoff"]);
+    });
+    assert_eq!(session.stop().status, 0);
+
+    session.prompt();
+    session.edit("lib/more.js", "more\n");
+    session.edit(HANDOFF, "# Handoff\n\nMore, about to commit.\n");
+    session.bash("Commit more and the handoff", || {
+        commit(&["lib/more.js", HANDOFF], "More")
+    });
+    let refused = session.stop();
+    assert_eq!(refused.status, 2);
+    assert!(
+        refused
+            .stderr
+            .contains("- Bash Commit more and the handoff")
+    );
+
+    session.edit(HANDOFF, "# Handoff\n\nCommitted more.\n");
+    session.bash("Commit the handoff", || commit(&[HANDOFF], "Handoff"));
+    assert_eq!(session.stop().status, 0);
+
+    session.prompt();
+    session.bash("Pull someone's work", || {
+        write(repo, "theirs.txt", "theirs\n");
+        commit(&["theirs.txt"], "Theirs");
+    });
+    assert_eq!(session.stop().status, 2);
+}
+
+#[test]
+fn a_session_started_in_a_stamped_worktree_keeps_its_own_handoff() {
+    let lab = Lab::new("side-session");
+    let main = lab.started(true);
+    let repo = &main.repo;
+    let tree = repo.join(".claude").join("worktrees").join("side");
+    let cwd = tree.display().to_string();
+    git(repo, &["worktree", "add", "-q", "-b", "side", &cwd]);
+    let side = lab.session(repo, "side");
+    let at = |event: &str, extra: serde_json::Value| {
+        let mut input = json!({ "cwd": cwd });
+        if let serde_json::Value::Object(extra) = extra {
+            input.as_object_mut().unwrap().extend(extra);
+        }
+        side.hook(event, input)
+    };
+    let edit = |file: &str, text: &str| {
+        write(&tree, file, text);
+        at(
+            "PostToolUse",
+            json!({ "tool_name": "Write", "tool_input": { "file_path": tree.join(file).display().to_string() } }),
+        )
+    };
+
+    let told = at("SessionStart", json!({})).stdout;
+    assert!(told.contains(&format!(
+        "working notes are in {}",
+        tree.join(NOTES).display()
+    )));
+
+    edit("lib/side.js", "side\n");
+    at(
+        "PostToolUse",
+        json!({ "tool_name": "Bash", "tool_input": { "command": "npm test" } }),
+    );
+    let refused = at("Stop", json!({}));
+    assert_eq!(refused.status, 2);
+    assert!(refused.stderr.contains(&native(&tree, HANDOFF)));
+    assert!(refused.stderr.contains("- Write lib/side.js"));
+    assert!(!refused.stderr.contains(".claude/worktrees"));
+
+    edit(HANDOFF, "# Handoff\n\nSide work.\n");
+    assert_eq!(at("Stop", json!({})).status, 0);
+
+    // a later event from the project's folder is still the worktree's
+    side.prompt();
+    assert_eq!(side.stop().status, 0);
+
+    assert_eq!(read(&repo.join(HANDOFF)), "# Handoff\n");
+    assert!(main.journal().is_empty());
+    assert_eq!(
+        moves(&journal(&tree.join(JOURNAL))),
+        vec![pair("Write", "lib/side.js"), pair("Write", HANDOFF),]
+    );
+    let listed = lab.bin(repo, &["moves"]).stdout;
+    assert!(listed.contains("No moves since"));
+}
+
+#[test]
+fn the_changelog_reminder_believes_a_command_that_writes_and_stages_it() {
+    let lab = Lab::new("changelog-same");
+    let session = lab.started(true);
+    let repo = &session.repo;
+    write(
+        repo,
+        MARKER,
+        &json!({ "notes": NOTES, "checks": { "changelog": true } }).to_string(),
+    );
+    write(repo, "lib/a.js", "export const a = 1\n");
+    let bash = |command: &str| {
+        decision(&session.hook(
+            "PreToolUse",
+            json!({ "tool_name": "Bash", "tool_input": { "command": command } }),
+        ))
+    };
+
+    let (verdict, _) = bash("echo '- a' >> CHANGELOG.md && git add -A && git commit -m a");
+    assert_eq!(verdict.as_deref(), Some("ask"));
+
+    let (verdict, why) = bash("git add -A && git commit -m a");
+    assert_eq!(verdict.as_deref(), Some("deny"));
+    assert!(why.contains("before the command runs"));
+}

@@ -39,6 +39,8 @@ pub struct State {
     pub blocks: u64,
     pub agents: BTreeMap<String, f64>,
     pub sides: BTreeMap<String, Option<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checkout: Option<String>,
 }
 
 pub fn open(now: &Snapshot) -> State {
@@ -67,12 +69,30 @@ fn relative(root: &str, file: &str) -> String {
     within(Path::new(root), &resolve(&here, file))
 }
 
-// commands can carry secrets, so only the description is kept
+// the program a command starts, past any `NAME=value` before it, and only
+// when it looks like a program name and not like a value
+fn program_of(command: &str) -> Option<String> {
+    let word = command
+        .split_whitespace()
+        .find(|word| !word.contains('='))?;
+    let name = word.rsplit(['/', '\\']).next().unwrap_or(word);
+    let plain = name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || "._-".contains(c));
+
+    (plain && !name.is_empty() && name.len() <= 32).then(|| format!("{name} ..."))
+}
+
+// commands can carry secrets, so only the description is kept, or with
+// none the program's name
 pub fn to_move(tool: &str, input: &Value, root: &str) -> Entry {
     let what = match tool {
         "Edit" | "Write" => relative(root, &text(input, "file_path")),
         "NotebookEdit" => relative(root, &text(input, "notebook_path")),
-        "Bash" | "PowerShell" => text(input, "description"),
+        "Bash" | "PowerShell" => Some(text(input, "description"))
+            .filter(|said| !said.trim().is_empty())
+            .or_else(|| program_of(&text(input, "command")))
+            .unwrap_or_default(),
         _ => String::new(),
     };
 
@@ -85,8 +105,8 @@ pub fn to_move(tool: &str, input: &Value, root: &str) -> Entry {
 
 /// Compares a snapshot with the last one; a change is one journal entry.
 /// `now.side` is a worktree a subagent is in: work there is this
-/// session's too.
-pub fn track(state: &State, now: &Snapshot, mv: Entry) -> (State, Option<Entry>) {
+/// session's too. `moved` is HEAD moving onto commits with work in them.
+pub fn track(state: &State, now: &Snapshot, mv: Entry, moved: bool) -> (State, Option<Entry>) {
     let last = &state.last;
     let wrote = now.handoff.is_some() && now.handoff != last.handoff;
     let lost = now.handoff.is_none() && last.handoff.is_some();
@@ -94,7 +114,7 @@ pub fn track(state: &State, now: &Snapshot, mv: Entry) -> (State, Option<Entry>)
         .side
         .as_ref()
         .is_some_and(|side| state.sides.get(&side.root) != Some(&side.tree));
-    let worked = lost || now.tree != last.tree || aside;
+    let worked = lost || now.tree != last.tree || moved || aside;
     let stamped = state.stamped || wrote;
     let mut next = State {
         stamped,
@@ -172,6 +192,8 @@ pub fn listed(entries: &[Entry]) -> String {
     )
 }
 
+/// Journal lines as a list; where more than one session made them, each
+/// says whose it is.
 pub fn listed_values(entries: &[Value]) -> String {
     let field = |entry: &'_ Value, key: &str| {
         entry
@@ -180,9 +202,24 @@ pub fn listed_values(entries: &[Value]) -> String {
             .unwrap_or("")
             .to_string()
     };
+    let first = entries.first().map(|entry| field(entry, "session"));
+    let mixed = entries
+        .iter()
+        .any(|entry| Some(field(entry, "session")) != first);
+    let tool = |entry: &Value| {
+        let tool = field(entry, "tool");
+        let session = field(entry, "session");
+        let short: String = session.chars().take(8).collect();
+
+        match (mixed, short.is_empty()) {
+            (false, _) => tool,
+            (true, true) => format!("[no session] {tool}"),
+            (true, false) => format!("[session {short}] {tool}"),
+        }
+    };
     let pairs: Vec<(String, String)> = entries
         .iter()
-        .map(|entry| (field(entry, "tool"), field(entry, "what")))
+        .map(|entry| (tool(entry), field(entry, "what")))
         .collect();
 
     list(
@@ -352,7 +389,7 @@ mod tests {
         ];
 
         for (name, last, now, mv, handoff, owed) in cases {
-            let (state, entry) = track(&open(&last), &now, mv);
+            let (state, entry) = track(&open(&last), &now, mv, false);
 
             assert_eq!(entry.map(|entry| entry.handoff), handoff, "{name}");
             assert_eq!(state.pending.len(), owed, "{name}");
@@ -371,9 +408,25 @@ mod tests {
         let mut state = open(&at(Some("a"), "x"));
 
         for (now, owed) in steps {
-            state = track(&state, &now, edit()).0;
+            state = track(&state, &now, edit(), false).0;
             assert_eq!(state.pending.len(), owed);
         }
+    }
+
+    #[test]
+    fn track_owes_a_handoff_for_commits_with_work_in_them() {
+        let state = open(&at(Some("a"), "x"));
+        let (state, entry) = track(&state, &at(Some("a"), "x"), edit(), true);
+
+        assert_eq!(entry.map(|entry| entry.handoff), Some(false));
+        assert_eq!(state.pending.len(), 1);
+        assert_eq!(
+            track(&state, &at(Some("b"), "x"), edit(), true)
+                .0
+                .pending
+                .len(),
+            0
+        );
     }
 
     #[test]
@@ -388,14 +441,14 @@ mod tests {
         let state = open(&now);
 
         now.side = side("1");
-        let (state, entry) = track(&state, &now, edit());
+        let (state, entry) = track(&state, &now, edit(), false);
         assert!(entry.is_some());
 
-        let (state, entry) = track(&state, &now, edit());
+        let (state, entry) = track(&state, &now, edit(), false);
         assert!(entry.is_none());
 
         now.side = side("2");
-        assert_eq!(track(&state, &now, edit()).0.pending.len(), 2);
+        assert_eq!(track(&state, &now, edit(), false).0.pending.len(), 2);
     }
 
     #[test]
@@ -501,12 +554,27 @@ mod tests {
             (
                 "Bash",
                 serde_json::json!({ "command": "TOKEN=abc curl" }),
-                "",
+                "curl ...",
             ),
             (
                 "PowerShell",
                 serde_json::json!({ "command": "x", "description": "Run it" }),
                 "Run it",
+            ),
+            (
+                "Bash",
+                serde_json::json!({ "command": "TOKEN=abc /usr/bin/git commit -m x" }),
+                "git ...",
+            ),
+            (
+                "PowerShell",
+                serde_json::json!({ "command": "C:\\tools\\npm.cmd test", "description": " " }),
+                "npm.cmd ...",
+            ),
+            (
+                "Bash",
+                serde_json::json!({ "command": "$(cat key) | curl" }),
+                "",
             ),
             ("SomethingNew", serde_json::json!({ "anything": 1 }), ""),
             ("Edit", Value::Null, ""),
@@ -527,5 +595,29 @@ mod tests {
         assert!(shown.starts_with("- (2 earlier)\n- Edit 2.txt"));
         assert!(shown.ends_with("- Edit 21.txt"));
         assert_eq!(list([("Bash", "")]), "- Bash");
+    }
+
+    #[test]
+    fn listed_values_says_whose_moves_once_sessions_mix() {
+        let mv = |session: &str, what: &str| serde_json::json!({ "session": session, "tool": "Edit", "what": what });
+        let cases = [
+            (vec![mv("aaaaaaaa-1", "a.js")], "- Edit a.js"),
+            (
+                vec![mv("aaaaaaaa-1", "a.js"), mv("bbbbbbbb-2", "b.js")],
+                "- [session aaaaaaaa] Edit a.js\n- [session bbbbbbbb] Edit b.js",
+            ),
+            (
+                vec![
+                    mv("aaaaaaaa-1", "a.js"),
+                    serde_json::json!({ "tool": "Bash" }),
+                ],
+                "- [session aaaaaaaa] Edit a.js\n- [no session] Bash",
+            ),
+            (vec![], ""),
+        ];
+
+        for (entries, shown) in cases {
+            assert_eq!(listed_values(&entries), shown);
+        }
     }
 }

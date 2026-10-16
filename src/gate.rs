@@ -14,7 +14,7 @@ use crate::session::{
     open, reason_for, to_move, track,
 };
 use crate::settings::{directives_of, settings_for};
-use crate::snapshot::{Snapshot, snapshot};
+use crate::snapshot::{Snapshot, checkout_of, moved, ours_of, project_side, snapshot};
 use crate::store::Store;
 
 fn plain(tool: &str) -> Entry {
@@ -31,6 +31,8 @@ struct Turn<'a> {
     home: &'a Path,
     id: String,
     session: Option<String>,
+    checkout: Option<String>,
+    project: &'a Path,
     journal: Journal,
     now: Snapshot,
 }
@@ -40,7 +42,22 @@ impl Turn<'_> {
         self.store
             .load(&self.id)
             .and_then(|saved| serde_json::from_value(saved).ok())
-            .unwrap_or_else(|| open(&self.now))
+            .unwrap_or_else(|| self.first())
+    }
+
+    // a session kept in a worktree starts knowing how the project's own
+    // checkout looks, so only a change there is its work
+    fn first(&self) -> State {
+        let mut state = State {
+            checkout: self.checkout.clone(),
+            ..open(&self.now)
+        };
+        if self.checkout.is_some() {
+            let side = project_side(self.project);
+            state.sides.insert(side.root, side.tree);
+        }
+
+        state
     }
 
     fn save(&self, state: &State) {
@@ -64,7 +81,15 @@ impl Turn<'_> {
     }
 
     fn sync(&self, mv: Entry) -> State {
-        let (state, entry) = track(&self.load(), &self.now, mv);
+        let state = self.load();
+        let (last, now) = (&state.last, &self.now);
+        let moved = moved(
+            Path::new(&now.root),
+            last.head.as_deref(),
+            now.head.as_deref(),
+            &ours_of(now),
+        );
+        let (state, entry) = track(&state, now, mv, moved);
 
         if let Some(entry) = entry.filter(|_| self.now.journal.is_some()) {
             self.log(&entry);
@@ -159,12 +184,35 @@ impl Turn<'_> {
     }
 }
 
+// the checkout a session keeps its notes in, fixed when it is first seen:
+// a session started in a stamped worktree of the project (the project is
+// the event's folder, the worktree its cwd) writes that worktree's handoff,
+// which its branch carries, and leaves the project's alone
+fn checkout_for(store: &Store, id: &str, event: &Event) -> Option<String> {
+    if let Some(saved) = store.load(id) {
+        return saved
+            .get("checkout")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+    }
+    if event.agent.is_some() {
+        return None;
+    }
+
+    checkout_of(Path::new(&event.dir), event.cwd.as_deref()).map(|side| side.display().to_string())
+}
+
 pub fn handle(store: &Store, home: &Path, event: &Event) -> Result<Outcome, String> {
-    let now = snapshot(Path::new(&event.dir), event.cwd.as_deref())?;
+    let id = event.id.clone().unwrap_or_else(|| "undefined".to_string());
+    let checkout = checkout_for(store, &id, event);
+    let dir = checkout.as_deref().unwrap_or(&event.dir);
+    let now = snapshot(Path::new(dir), event.cwd.as_deref())?;
     let turn = Turn {
         store,
         home,
-        id: event.id.clone().unwrap_or_else(|| "undefined".to_string()),
+        id,
+        checkout,
+        project: Path::new(&event.dir),
         session: event.id.clone(),
         journal: Journal::new(now.journal.as_ref().map(PathBuf::from)),
         now,

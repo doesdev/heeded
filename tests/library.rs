@@ -15,7 +15,10 @@ use serde_json::{Value, json};
 fn snapshot_sees_every_kind_of_work_and_ignores_our_own_files() {
     let lab = Lab::new("snapshot");
     let repo = lab.repo(true);
-    let tree = || snapshot(&repo, None).unwrap().tree;
+    let tree = || {
+        let now = snapshot(&repo, None).unwrap();
+        (now.head, now.tree)
+    };
     let mut trees = vec![tree()];
     let steps: Vec<Box<dyn Fn()>> = vec![
         Box::new(|| write(&repo, "new.txt", "one\n")),

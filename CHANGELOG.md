@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Committing the handoff on its own no longer makes the stop gate ask
+  for it again. Committing work still does.
+- A session started in a worktree of a stamped repo now writes and is
+  checked against that worktree's handoff, and leaves the main
+  checkout's notes alone.
+- The changelog reminder no longer refuses a command that writes the
+  changelog, stages it and commits in one go.
+- Listed moves say which session made them when several did, and a
+  command with no description shows the program it ran.
+
 ## [0.15.0] - 2026-10-16
 
 ### Added
