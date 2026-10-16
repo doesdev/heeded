@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-16
+
 ### Added
 
 - heeded is MIT licensed, so you can use, change and share it.
