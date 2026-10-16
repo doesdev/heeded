@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-16
+
 ### Added
 
 - `heeded update` installs the latest release and updates the Claude
