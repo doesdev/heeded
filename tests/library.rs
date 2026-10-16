@@ -6,7 +6,7 @@ use std::path::Path;
 
 use common::*;
 use heeded::harness::{Claude, Cursor, Event, Harness, Outcome};
-use heeded::notes::notes_of;
+use heeded::notes::{notes_of, private_of};
 use heeded::settings::{defaults, directives_of, settings_for};
 use heeded::snapshot::snapshot;
 use serde_json::{Value, json};
@@ -92,6 +92,37 @@ fn notes_of_reads_the_marker_and_refuses_a_broken_one() {
         let ex = notes_of(&dir).unwrap_err();
         assert!(
             ex.ends_with("must be JSON like { \"notes\": \".heeded\" }"),
+            "{text}: {ex}"
+        );
+    }
+}
+
+#[test]
+fn private_of_falls_back_to_the_notes_and_refuses_a_broken_one() {
+    let lab = Lab::new("private-of");
+    let dir = lab.dir("marker");
+    assert_eq!(private_of(&dir).unwrap(), None);
+
+    let good = [
+        (MARKED, dir.join(NOTES)),
+        (
+            "{ \"notes\": \"docs\", \"privateNotes\": \".private\" }",
+            dir.join(".private"),
+        ),
+    ];
+    for (text, private) in good {
+        write(&dir, MARKER, text);
+        assert_eq!(private_of(&dir).unwrap(), Some(private), "{text}");
+    }
+    for text in [
+        "{ \"notes\": \"docs\", \"privateNotes\": \"\" }",
+        "{ \"notes\": \"docs\", \"privateNotes\": null }",
+        "{ \"notes\": \"docs\", \"privateNotes\": 3 }",
+    ] {
+        write(&dir, MARKER, text);
+        let ex = private_of(&dir).unwrap_err();
+        assert!(
+            ex.ends_with("privateNotes must name a folder"),
             "{text}: {ex}"
         );
     }

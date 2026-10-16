@@ -152,6 +152,53 @@ fn init_notes_elsewhere_keep_the_journal_ignored() {
 }
 
 #[test]
+fn init_keeps_the_private_notes_apart_and_out_of_git() {
+    let lab = Lab::new("init-apart");
+    let repo = lab.repo(false);
+
+    let ran = lab.bin(
+        &repo,
+        &[
+            "init",
+            "--notes",
+            "docs",
+            "--private",
+            ".private",
+            "--tracked",
+        ],
+    );
+    assert_eq!(ran.status, 0, "{}", ran.stderr);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&read(&repo.join(MARKER))).unwrap(),
+        json!({ "notes": "docs", "privateNotes": ".private" })
+    );
+    assert_eq!(read(&repo.join(".private/.gitignore")), "*\n");
+    assert!(exists(&repo.join(".private/handoff.md")));
+    assert!(!exists(&repo.join("docs/handoff.md")));
+    assert_eq!(
+        status(&repo),
+        [
+            MARKER,
+            "docs/.gitignore",
+            "docs/decisions/README.md",
+            "docs/plan.md",
+            "docs/rework.jsonl",
+            "package.json",
+        ]
+    );
+
+    let moved = lab.bin(&repo, &["moves"]);
+    assert!(moved.stdout.contains(&native(&repo, ".private/handoff.md")));
+
+    let other = lab.repo(false);
+    write(&other, "own/README.md", "a checkout of its own\n");
+    let kept = lab.bin(&other, &["init", "--private", "own"]);
+    assert_eq!(kept.status, 0, "{}", kept.stderr);
+    assert!(exists(&other.join("own/handoff.md")));
+    assert!(!exists(&other.join("own/.gitignore")));
+}
+
+#[test]
 fn init_keeps_what_it_creates_out_of_git_unless_told_tracked() {
     let lab = Lab::new("init-private");
     let mut tracked: Vec<String> = stamped_in(NOTES)

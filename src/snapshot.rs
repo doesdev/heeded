@@ -8,7 +8,7 @@ use serde_json::json;
 
 use crate::consts::{HANDOFF, JOURNAL};
 use crate::git::{common_of, git, root_of};
-use crate::notes::notes_of;
+use crate::notes::{notes_of, private_of};
 use crate::paths::{clean, within};
 
 pub const SECTIONS: [&str; 4] = ["Did", "Did not", "Open", "Next"];
@@ -138,8 +138,9 @@ fn side_of(dir: &Path, root: &Path, cwd: Option<&str>) -> Option<Side> {
 pub fn snapshot(dir: &Path, cwd: Option<&str>) -> Result<Snapshot, String> {
     let root: PathBuf = root_of(dir);
     let notes = notes_of(&root)?;
-    let file = notes.as_ref().map(|notes| notes.join(HANDOFF));
-    let journal = notes.as_ref().map(|notes| notes.join(JOURNAL));
+    let private = private_of(&root)?;
+    let file = private.as_ref().map(|private| private.join(HANDOFF));
+    let journal = private.as_ref().map(|private| private.join(JOURNAL));
     let ours: Vec<String> = [&file, &journal]
         .into_iter()
         .flatten()

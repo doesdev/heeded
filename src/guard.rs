@@ -13,7 +13,7 @@ use crate::commit::{
 use crate::consts::MARKER;
 use crate::git::{git, root_and_common};
 use crate::harness::{Event, Outcome};
-use crate::notes::notes_of;
+use crate::notes::{apart_of, notes_of};
 use crate::paths::{clean, resolve, within};
 use crate::settings::{get_str, settings_files, settings_for};
 use crate::snapshot::fingerprint;
@@ -49,7 +49,23 @@ fn holds_notes(repo: &Path, root: &Path) -> bool {
         && notes_of(root)
             .ok()
             .flatten()
-            .is_some_and(|notes| inside(repo, &notes))
+            .into_iter()
+            .chain(apart_of(root))
+            .any(|notes| inside(repo, &notes))
+}
+
+// staged files from the private notes folder, which never belong in git
+fn private_in(root: &Path, files: &[String]) -> Vec<String> {
+    let Some(private) = apart_of(root).filter(|private| inside(root, private)) else {
+        return vec![];
+    };
+    let at = format!("{}/", within(root, &private));
+
+    files
+        .iter()
+        .filter(|file| file.starts_with(&at))
+        .cloned()
+        .collect()
 }
 
 struct Incoming {
@@ -176,11 +192,22 @@ impl<'a> Guard<'a> {
             email: get_str(settings, "identity", "email"),
         };
         let secrets = secrets_in(where_, &coming);
+        let private = if changelog {
+            private_in(root, &coming.files)
+        } else {
+            vec![]
+        };
         let problems: Vec<String> = [
             identity_problem(command, &actual, &wanted),
             attribution_problem(command, get_str(settings, "identity", "attribution")),
             (!secrets.is_empty())
                 .then(|| format!("what looks like a secret:\n{}", secrets.join("\n"))),
+            (!private.is_empty()).then(|| {
+                format!(
+                    "files from the private notes, which stay out of git:\n{}",
+                    private.join("\n")
+                )
+            }),
         ]
         .into_iter()
         .flatten()

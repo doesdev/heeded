@@ -10,7 +10,7 @@ use crate::clock::{iso, minute, now_ms};
 use crate::consts::{HANDOFF, JOURNAL, MARKER, NOTES, REWORK, SETTINGS, home_dir};
 use crate::git::{git, root_of};
 use crate::journal::{Journal, since_handoff};
-use crate::notes::notes_of;
+use crate::notes::{notes_of, private_of};
 use crate::paths::resolve;
 use crate::rework::{CLASSES, OUTCOMES, check_rework};
 use crate::scaffold::scaffold;
@@ -37,7 +37,7 @@ fn help_for(topic: &str) -> Option<String> {
 
     Some(match topic {
         "init" => format!(
-            "heeded init [dir] [--notes <folder>] [--tracked]
+            "heeded init [dir] [--notes <folder>] [--private <folder>] [--tracked]
 
   Stamps a repo so heeded's hooks gate it. Writes {MARKER} at the root,
   the notes folder it names (default {NOTES}) with handoff.md, plan.md,
@@ -46,7 +46,12 @@ fn help_for(topic: &str) -> Option<String> {
 
   What it creates is hidden from this clone's git (.git/info/exclude)
   unless --tracked. --notes puts the notes somewhere else, such as a
-  private checkout inside the repo."
+  private checkout inside the repo.
+
+  --private keeps the handoff and journal in a folder of their own that
+  git never sees, while the plan, decisions and rework log stay in the
+  notes, so they can be tracked and the rest never is. A new private
+  folder ignores itself; a commit carrying anything from it is refused."
         ),
         "moves" => "heeded moves [dir]
 
@@ -94,7 +99,7 @@ pub struct Args {
     pub flags: Vec<String>,
 }
 
-const VALUED: [&str; 5] = ["notes", "task", "outcome", "class", "note"];
+const VALUED: [&str; 6] = ["notes", "private", "task", "outcome", "class", "note"];
 const SWITCHES: [&str; 6] = ["tracked", "global", "local", "show", "help", "version"];
 
 pub fn parse(argv: &[String]) -> Result<Args, String> {
@@ -150,7 +155,12 @@ fn stamped(root: &Path) -> Result<PathBuf, String> {
 }
 
 fn init(root: &Path, args: &Args) -> Result<(), String> {
-    let done = scaffold(root, args.value("notes"), args.has("tracked"))?;
+    let done = scaffold(
+        root,
+        args.value("notes"),
+        args.value("private"),
+        args.has("tracked"),
+    )?;
 
     println!("{}", root.display());
     for (file, did) in &done.files {
@@ -164,7 +174,8 @@ fn init(root: &Path, args: &Args) -> Result<(), String> {
 }
 
 fn moves(root: &Path) -> Result<(), String> {
-    let notes = stamped(root)?;
+    stamped(root)?;
+    let notes = private_of(root)?.unwrap_or_default();
     let all = Journal::new(Some(notes.join(JOURNAL))).read();
     let left = since_handoff(&all);
 

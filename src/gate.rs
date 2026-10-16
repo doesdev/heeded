@@ -84,8 +84,12 @@ impl Turn<'_> {
         let left = unhanded(&self.journal.read(), self.session.as_deref());
         let file = self.now.file.as_deref().unwrap_or("");
         let settings = settings_for(Path::new(&self.now.root), self.home);
+        let private = Path::new(file)
+            .parent()
+            .map(|dir| dir.display().to_string())
+            .filter(|dir| dir != notes);
         let parts = [
-            notes_note(notes),
+            notes_note(notes, private.as_deref()),
             directives_note(&directives_of(&settings)),
             if left.is_empty() {
                 String::new()

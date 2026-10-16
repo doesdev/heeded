@@ -3,13 +3,14 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use crate::consts::{MARKER, NOTES};
+use crate::consts::{HANDOFF, MARKER, NOTES};
 use crate::git::git;
-use crate::notes::notes_of;
+use crate::notes::{notes_of, private_of};
 use crate::paths::{resolve, within};
 
 const MANIFEST: &str = "package.json";
 const EXCLUDE: &str = "info/exclude";
+const IGNORE_ALL: &str = "*\n";
 
 // the templates folder, built in; sorted the way a directory walk sorts them
 const NOTES_TEMPLATES: [(&str, &str); 5] = [
@@ -30,6 +31,7 @@ const ROOT_TEMPLATES: [(&str, &str); 1] =
 
 pub struct Stamped {
     pub notes: PathBuf,
+    pub private: PathBuf,
     pub files: Vec<(String, &'static str)>,
     pub check: bool,
 }
@@ -106,15 +108,28 @@ fn hide(root: &Path, patterns: &[String]) -> Result<Vec<(PathBuf, &'static str)>
 
 /// An existing marker wins over the notes folder asked for, and only what
 /// this run created is hidden: what was already there is the repo's choice.
-pub fn scaffold(root: &Path, asked: Option<&str>, tracked: bool) -> Result<Stamped, String> {
+pub fn scaffold(
+    root: &Path,
+    asked: Option<&str>,
+    private: Option<&str>,
+    tracked: bool,
+) -> Result<Stamped, String> {
     let marker = root.join(MARKER);
+    let mut wanted = serde_json::json!({ "notes": asked.unwrap_or(NOTES) });
+    if let Some(private) = private {
+        wanted["privateNotes"] = private.into();
+    }
     let text = format!(
         "{}\n",
-        serde_json::to_string_pretty(&serde_json::json!({ "notes": asked.unwrap_or(NOTES) }))
-            .unwrap_or_default()
+        serde_json::to_string_pretty(&wanted).unwrap_or_default()
     );
     let marked = create(&marker, &text)?;
     let notes = notes_of(root)?.unwrap_or_else(|| root.join(NOTES));
+    let private = private_of(root)?.unwrap_or_else(|| notes.clone());
+    let apart = private != notes;
+    // a new private folder ignores itself, in every clone and without a
+    // line in the repo's .gitignore; one already there is left as it is
+    let sealed = apart && !private.exists() && !within(root, &private).starts_with("..");
     let fresh: Vec<String> = [
         (marked == "created").then(|| format!("/{MARKER}")),
         (!notes.exists()).then(|| format!("/{}/", within(root, &notes))),
@@ -125,7 +140,14 @@ pub fn scaffold(root: &Path, asked: Option<&str>, tracked: bool) -> Result<Stamp
     .collect();
 
     let mut stamped = vec![(marker, marked)];
-    stamped.extend(stamp(&NOTES_TEMPLATES, &notes)?);
+    let (handoff, rest): (Vec<_>, Vec<_>) = NOTES_TEMPLATES
+        .into_iter()
+        .partition(|(file, _)| apart && *file == HANDOFF);
+    stamped.extend(stamp(&rest, &notes)?);
+    if sealed {
+        stamped.extend(stamp(&[(".gitignore", IGNORE_ALL)], &private)?);
+    }
+    stamped.extend(stamp(&handoff, &private)?);
     stamped.extend(stamp(&ROOT_TEMPLATES, root)?);
     if !tracked {
         stamped.extend(hide(root, &fresh)?);
@@ -138,5 +160,6 @@ pub fn scaffold(root: &Path, asked: Option<&str>, tracked: bool) -> Result<Stamp
             .collect(),
         check: has_check(root),
         notes,
+        private,
     })
 }

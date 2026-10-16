@@ -23,8 +23,8 @@ plus a repo scaffold, both living here.
   `archive/`. Nothing in them is enforced, which is the
   whole problem this plan addresses.
 - The plugin: the journal and stop hooks, `heeded init` (CLI
-  and skill) and the `/handoff` skill, with tests. See
-  `docs/handoff.md`.
+  and skill) and the `/handoff` skill, with tests. See the
+  handoff, which is private (`.heeded/handoff.md`, 0031).
 - Salvage list (conventions worth carrying forward as rules):
   - repo is the source of truth; chat output is scratch
   - verification-gated commits, never trust prose claims
@@ -57,7 +57,10 @@ identical interface, never overwriting what is there:
 ```
 
 The notes folder is the repo's choice (0011): anywhere in the
-repo, a private checkout nested in it, or outside it. The
+repo, a private checkout nested in it, or outside it. A repo can
+also set `privateNotes` (0031): the handoff and journal go
+there, in a folder that ignores itself, and the plan, decisions
+and rework log can be tracked. The
 plugin does not write to `docs/`, `CLAUDE.md` or the repo's
 `.gitignore`. In this repo the marker names `docs`.
 
@@ -145,7 +148,7 @@ One record each in `docs/decisions/`:
 11. 0011: a marker file opts a repo in and names its notes
     folder; the plugin takes no folder for itself.
 12. 0012: notes are private by default (hidden from git in
-    that clone); `--tracked` is the opt-in.
+    that clone); `--tracked` is the opt-in (amended by 0031).
 13. 0013: six rules of Andrew's, printed at session start
     (amended by 0021).
 14. 0014: a portable core with one thin adapter per harness,
@@ -178,6 +181,8 @@ One record each in `docs/decisions/`:
     asked.
 30. 0030: heredoc bodies that cat or tee write out are not
     classified.
+31. 0031: a repo can keep its handoff and journal in private
+    notes apart from the rest, a folder git never sees.
 
 ## Constraints added on 2026-10-09
 
@@ -276,7 +281,7 @@ his to overturn:
 
 ## Next session
 
-1. Read this file and `docs/handoff.md`.
+1. Read this file and `.heeded/handoff.md`.
 2. Andrew reviews the list above.
 3. Commit what is here, if he says to. Nothing since session
    1's first two commits is committed.
@@ -302,4 +307,5 @@ confirmed. The `Cursor` adapter in `src/harness.rs` is the draft
 to correct.
 
 Blocked as of 2026-10-15: heeded does not run there yet, so the
-Cursor adapter cannot be tried there.
+Cursor adapter cannot be tried there. Why, and what would change
+it, is in the private notes (`.heeded/work-machine.md`).

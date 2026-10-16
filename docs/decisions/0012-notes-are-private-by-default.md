@@ -1,7 +1,7 @@
 # 0012: Notes are private by default; tracking them is opt-in
 
 Date: 2026-10-09T06:32Z
-Status: accepted
+Status: amended by 0031
 Proposed by: human (Andrew)
 Ratified by: claude-opus-5-5
 

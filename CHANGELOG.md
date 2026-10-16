@@ -5,6 +5,10 @@
 ### Added
 
 - heeded is MIT licensed, so you can use, change and share it.
+- You can keep the handoff and journal in private notes of their own
+  while the plan and decisions are tracked: `heeded init --private
+  <folder>`. Git never sees that folder, and a commit that carries
+  anything from it is refused.
 
 ## [0.13.0] - 2026-10-15
 

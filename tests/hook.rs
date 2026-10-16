@@ -895,3 +895,49 @@ fn a_heredoc_written_to_a_file_is_not_the_command() {
         Some("ask".to_string())
     );
 }
+
+// private notes
+
+#[test]
+fn private_notes_hold_the_handoff_and_never_reach_git() {
+    let lab = Lab::new("private-notes");
+    let repo = lab.repo(false);
+    write(
+        &repo,
+        MARKER,
+        "{ \"notes\": \"docs\", \"privateNotes\": \".private\" }\n",
+    );
+    write(&repo, "docs/plan.md", "# Plan\n");
+    write(&repo, ".private/.gitignore", "*\n");
+    write(&repo, ".private/handoff.md", "# Handoff\n");
+    git(&repo, &["add", "-A"]);
+    git(&repo, &["commit", "-q", "-m", "Stamp"]);
+    let session = lab.session(&repo, "private");
+    let handoff = ".private/handoff.md";
+
+    let told = session.start().stdout;
+    assert!(told.contains(&format!(
+        "working notes are in {}, its private notes in {}",
+        repo.join("docs").display(),
+        repo.join(".private").display()
+    )));
+
+    session.edit("work.txt", "work\n");
+    let refused = session.stop();
+    assert_eq!(refused.status, 2);
+    assert!(refused.stderr.contains(&native(&repo, handoff)));
+    assert!(exists(&repo.join(".private/journal.jsonl")));
+    assert!(!exists(&repo.join("docs/journal.jsonl")));
+
+    session.edit(handoff, "# Handoff\n\nDid work.\n");
+    assert_eq!(session.stop().status, 0);
+
+    git(&repo, &["add", "-f", handoff]);
+    let (verdict, why) = decision(&session.hook(
+        "PreToolUse",
+        json!({ "tool_name": "Bash", "tool_input": { "command": "git commit -m x" } }),
+    ));
+    assert_eq!(verdict.as_deref(), Some("deny"));
+    assert!(why.contains("private notes"));
+    assert!(why.contains(handoff));
+}

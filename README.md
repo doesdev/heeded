@@ -9,9 +9,9 @@ notes folder, a hook logs every move that changes the repo to a
 journal there, and a session cannot stop while any of those
 moves is newer than the handoff.
 
-The plan is in [docs/plan.md](docs/plan.md), the state of play in
-[docs/handoff.md](docs/handoff.md), and the reasons in
-[docs/decisions](docs/decisions).
+The plan is in [docs/plan.md](docs/plan.md) and the reasons in
+[docs/decisions](docs/decisions). The state of play is a handoff
+kept in private notes, so it is not in the repo.
 
 ## Install
 
@@ -81,7 +81,19 @@ they are not committed. `--tracked` leaves them visible to git.
 
 The folder can be anywhere: a private checkout nested in a public
 repo, an absolute path. The plugin never writes to `docs/` unless
-the marker says so. (This repo's does, and its notes are tracked.)
+the marker says so.
+
+To track the plan and decisions but not the handoff, give the
+handoff and journal a folder of their own:
+
+```json
+{ "notes": "docs", "privateNotes": ".heeded" }
+```
+
+`heeded init --notes docs --private .heeded` writes that. A new
+private folder holds a `.gitignore` of `*`, so git never sees it in
+any clone, and a commit carrying anything from it is refused. (This
+repo is set up this way.)
 
 ## Settings
 

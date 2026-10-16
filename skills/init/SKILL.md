@@ -18,7 +18,7 @@ last argument.
 By default the notes go in a `.heeded` folder at the root and
 are private: the marker and the folder are hidden from git in
 this clone, so they are not committed, not versioned and not
-in a fresh clone. Two flags change that, and both are the
+in a fresh clone. Three flags change that, and all are the
 user's call, not yours:
 
 - `--notes <folder>` puts the notes somewhere else. Offer it
@@ -28,11 +28,15 @@ user's call, not yours:
 - `--tracked` leaves the notes visible to git so they are
   committed with the repo. In a public repo that publishes
   them. Use it only when the user asks.
+- `--private <folder>` keeps the handoff and journal in a
+  folder of their own that git never sees, so the plan and
+  decisions can be tracked without them. Offer it with
+  `--tracked` when the repo is public or may become so.
 
 It never overwrites. Each file is reported as `created`,
 `kept` or `updated`. Tell the user which were which. It
-writes the marker, the notes folder and, only if there is
-none, a `package.json`. The only other file it can touch is
+writes the marker, the notes folder, the private folder if
+asked for and, only if there is none, a `package.json`. The only other file it can touch is
 `.git/info/exclude`. Not `CLAUDE.md`, not `.gitignore`.
 
 Then:
@@ -45,4 +49,5 @@ Then:
 - A `created` `plan.md` is a blank template. Offer to write
   it with the user; do not fill it with guesses.
 - The repo is now gated: a session that changes it cannot
-  stop until the handoff in the notes folder is rewritten.
+  stop until the handoff (in the private folder, if there is
+  one) is rewritten.

@@ -4,7 +4,7 @@ mod common;
 
 use std::path::Path;
 
-use common::{git_out, read};
+use common::{exists, git_out, read};
 use heeded::snapshot::{SECTIONS, check_handoff};
 use regex::Regex;
 use serde_json::Value;
@@ -112,7 +112,9 @@ fn the_handoff_shape_is_the_same_everywhere_it_is_written_down() {
     let shape: Vec<String> = SECTIONS.iter().map(|name| format!("## {name}\n")).collect();
 
     assert!(check_handoff(&read(Path::new("templates/notes/handoff.md"))).is_empty());
-    assert!(check_handoff(&read(Path::new("docs/handoff.md"))).is_empty());
+    // this repo's own handoff is private, so a fresh clone has none
+    let own = Path::new(".heeded/handoff.md");
+    assert!(!exists(own) || check_handoff(&read(own)).is_empty());
     assert!(skill.contains(&shape.join("\n")));
 }
 
