@@ -183,6 +183,8 @@ One record each in `docs/decisions/`:
     classified.
 31. 0031: a repo can keep its handoff and journal in private
     notes apart from the rest, a folder git never sees.
+32. 0032: `heeded update` installs the latest release, checked
+    against its sums, then updates the plugin.
 
 ## Constraints added on 2026-10-09
 

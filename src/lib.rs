@@ -18,8 +18,10 @@ pub mod rework;
 pub mod scaffold;
 pub mod session;
 pub mod settings;
+pub mod sha256;
 pub mod snapshot;
 pub mod store;
+pub mod update;
 pub mod wizard;
 
 use std::io::Read;

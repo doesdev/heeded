@@ -11,11 +11,35 @@ pub const SETTINGS: &str = "config.json";
 pub const JOURNAL_MAX: usize = 500;
 pub const MAX_BLOCKS: u64 = 3;
 pub const DIRECTIVE_MAX: usize = 4000;
+pub const RELEASES_API: &str = "https://api.github.com/repos/doesdev/heeded/releases/latest";
+pub const RELEASES: &str = "https://github.com/doesdev/heeded/releases/download";
 
 fn var(name: &str) -> Option<PathBuf> {
     std::env::var_os(name)
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
+}
+
+fn text(name: &str, or: &str) -> String {
+    std::env::var(name)
+        .ok()
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| or.to_string())
+}
+
+/// Where `heeded update` learns the latest release's tag.
+pub fn releases_api() -> String {
+    text("HEEDED_RELEASES_API", RELEASES_API)
+}
+
+/// Where release files are, one folder per tag.
+pub fn releases() -> String {
+    text("HEEDED_RELEASES", RELEASES)
+}
+
+/// The Claude Code that `heeded update` updates the plugin with.
+pub fn claude_cmd() -> String {
+    text("HEEDED_CLAUDE", "claude")
 }
 
 /// Where the user's config lives: `HEEDED_HOME`, else `~/.heeded`.

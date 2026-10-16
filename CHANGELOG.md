@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- `heeded update` installs the latest release and updates the Claude
+  Code plugin in one step, after checking the download against the
+  release's checksums. `heeded update --check` says whether there is
+  a newer one.
+
 ## [0.14.0] - 2026-10-16
 
 ### Added

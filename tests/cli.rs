@@ -2,7 +2,7 @@
 
 mod common;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use common::*;
 use serde_json::json;
@@ -555,4 +555,146 @@ fn the_stamped_check_fails_until_someone_wires_it_up() {
 
     assert_eq!(ran.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&ran.stderr).contains("not wired up"));
+}
+
+// update, against a release served from local files
+
+fn file_url(path: &Path) -> String {
+    let path = path.display().to_string().replace('\\', "/");
+
+    format!("file:///{}", path.trim_start_matches('/'))
+}
+
+struct Release {
+    exe: PathBuf,
+    api: PathBuf,
+    files: PathBuf,
+}
+
+fn release(lab: &Lab, tag: &str, sum: Option<&str>) -> Release {
+    let suffix = std::env::consts::EXE_SUFFIX;
+    let build = std::fs::read(BIN).unwrap();
+    let target = heeded::update::target().unwrap();
+    let asset = heeded::update::asset_for(tag, target);
+    let digest = sum.map_or_else(|| heeded::sha256::sha256(&build), str::to_string);
+    let files = lab.dir("releases");
+    write(
+        &files,
+        &format!("{tag}/SHA256SUMS"),
+        &format!("{digest}  {asset}\n"),
+    );
+    std::fs::write(files.join(tag).join(&asset), &build).unwrap();
+    let api = lab.dir("api").join("latest");
+    std::fs::write(&api, json!({ "tag_name": tag }).to_string()).unwrap();
+    let exe = lab.dir("bin").join(format!("heeded{suffix}"));
+    std::fs::write(&exe, &build).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    Release { exe, api, files }
+}
+
+fn update(release: &Release, args: &[&str], claude: &str) -> Ran {
+    let out = std::process::Command::new(&release.exe)
+        .arg("update")
+        .args(args)
+        .env("HEEDED_RELEASES_API", file_url(&release.api))
+        .env("HEEDED_RELEASES", file_url(&release.files))
+        .env("HEEDED_CLAUDE", claude)
+        .output()
+        .unwrap();
+
+    Ran {
+        status: out.status.code().unwrap_or(-1),
+        stdout: String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"),
+        stderr: String::from_utf8_lossy(&out.stderr).replace("\r\n", "\n"),
+    }
+}
+
+fn beside(release: &Release, name: &str) -> bool {
+    exists(
+        &release
+            .exe
+            .with_file_name(format!("{name}{}", std::env::consts::EXE_SUFFIX)),
+    )
+}
+
+#[test]
+fn update_installs_a_newer_release_and_leaves_the_rest_alone() {
+    let lab = Lab::new("update");
+    let version = env!("CARGO_PKG_VERSION");
+    let nowhere = lab.tmp.join("no-claude").display().to_string();
+
+    let current = release(&lab, &format!("v{version}"), None);
+    let ran = update(&current, &[], &nowhere);
+    assert_eq!(ran.status, 0, "{}", ran.stderr);
+    assert!(
+        ran.stdout
+            .contains(&format!("heeded {version} is up to date"))
+    );
+
+    let newer = release(&lab, "v99.0.0", None);
+    let checked = update(&newer, &["--check"], &nowhere);
+    assert_eq!(checked.status, 0, "{}", checked.stderr);
+    assert!(checked.stdout.contains("v99.0.0 is out"));
+    assert!(!beside(&newer, "heeded.old"));
+
+    let ran = update(&newer, &[], &nowhere);
+    assert_eq!(ran.status, 0, "{}", ran.stderr);
+    assert!(
+        ran.stdout
+            .contains(&format!("to v99.0.0 (it says heeded {version})"))
+    );
+    assert!(ran.stdout.contains(
+        "Claude Code was not found, so update the plugin yourself:\n  \
+claude plugin marketplace update heeded\n  claude plugin update heeded@heeded"
+    ));
+    assert!(!beside(&newer, "heeded.download"));
+    assert_eq!(beside(&newer, "heeded.old"), cfg!(windows));
+
+    std::fs::write(&newer.api, json!({ "tag_name": "v0.0.1" }).to_string()).unwrap();
+    assert_eq!(update(&newer, &[], &nowhere).status, 0);
+    assert!(!beside(&newer, "heeded.old"));
+
+    let failing = release(&lab, "v99.0.0", None);
+    let ran = update(&failing, &[], "git");
+    assert_eq!(ran.status, 0, "{}", ran.stderr);
+    assert!(ran.stdout.contains(
+        "claude plugin marketplace update heeded failed. Run it yourself, and what follows:"
+    ));
+}
+
+#[test]
+fn update_refuses_a_bad_download_and_changes_nothing() {
+    let lab = Lab::new("update-bad");
+    let nowhere = lab.tmp.join("no-claude").display().to_string();
+
+    let tampered = release(&lab, "v99.0.0", Some(&"0".repeat(64)));
+    let before = std::fs::read(&tampered.exe).unwrap();
+    let ran = update(&tampered, &[], &nowhere);
+    assert_eq!(ran.status, 1);
+    assert!(
+        ran.stderr.contains("does not match SHA256SUMS"),
+        "{}",
+        ran.stderr
+    );
+    assert!(ran.stderr.contains("Nothing was changed."));
+    assert_eq!(std::fs::read(&tampered.exe).unwrap(), before);
+    assert!(!beside(&tampered, "heeded.download"));
+    assert!(!beside(&tampered, "heeded.old"));
+
+    let gone = Release {
+        api: lab.tmp.join("no-api"),
+        ..release(&lab, "v99.0.0", None)
+    };
+    let ran = update(&gone, &[], &nowhere);
+    assert_eq!(ran.status, 1);
+    assert!(
+        ran.stderr.starts_with("Could not reach file:///"),
+        "{}",
+        ran.stderr
+    );
 }

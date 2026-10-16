@@ -32,9 +32,15 @@ downloaded-file mark, and on macOS, `xattr -d
 com.apple.quarantine heeded` does. `heeded --version` says which
 one you have. The plugin's hooks and
 skills call it by name, so both must be installed, and a new build
-of the binary takes effect in the next tool call. After a version
-bump, also run `claude plugin marketplace update heeded` and
-`claude plugin update heeded@heeded`.
+of the binary takes effect in the next tool call.
+
+To update, run `heeded update`. When a newer release is out it
+downloads the binary for your machine, checks it against
+`SHA256SUMS` and that it runs, swaps it in, then runs `claude plugin
+marketplace update heeded` and `claude plugin update heeded@heeded`.
+`heeded update --check` only says whether there is one. It needs
+`curl`. A marketplace added from a folder updates from that folder,
+so bring that checkout up to date as well.
 
 ## Usage
 

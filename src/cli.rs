@@ -1,4 +1,4 @@
-//! The commands a person types: init, moves, retro, config, help.
+//! The commands a person types: init, moves, retro, config, update, help.
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, IsTerminal, Read, Write};
@@ -16,6 +16,7 @@ use crate::rework::{CLASSES, OUTCOMES, check_rework};
 use crate::scaffold::scaffold;
 use crate::session::listed_values;
 use crate::settings::{defaults, directives_of, read_json, settings_for, user_settings};
+use crate::update::update;
 use crate::wizard::walk;
 
 const SUMMARY: &str = "heeded: good habits, installed rather than remembered
@@ -26,6 +27,7 @@ Usage: heeded <command> [dir] [options]
   moves    what changed since the last handoff
   retro    log how a finished task turned out
   config   step through your settings, global or for this repo
+  update   install the latest release and update the plugin
   version  which build this is
   help     this, or more about one command (heeded help config)
 
@@ -83,6 +85,14 @@ fn help_for(topic: &str) -> Option<String> {
   the keyboard.",
             user_file.display()
         ),
+        "update" => "heeded update [--check]
+
+  Installs the latest release in place of this build when it is newer:
+  downloads the binary for this machine, checks it against the
+  release's SHA256SUMS and that it runs, swaps it in, then updates the
+  Claude Code plugin. --check says what it would do and does nothing.
+  Needs curl."
+            .to_string(),
         "help" => "heeded help [command]
 
   Prints this, or more about one command."
@@ -100,7 +110,9 @@ pub struct Args {
 }
 
 const VALUED: [&str; 6] = ["notes", "private", "task", "outcome", "class", "note"];
-const SWITCHES: [&str; 6] = ["tracked", "global", "local", "show", "help", "version"];
+const SWITCHES: [&str; 7] = [
+    "tracked", "global", "local", "show", "help", "version", "check",
+];
 
 pub fn parse(argv: &[String]) -> Result<Args, String> {
     let mut args = Args::default();
@@ -378,6 +390,9 @@ pub fn run(argv: &[String]) -> Result<(), String> {
     }
 
     let name = name.unwrap_or_default();
+    if name == "update" {
+        return update(args.has("check"));
+    }
     if !matches!(name, "init" | "moves" | "retro" | "config") {
         return Err(unknown(name));
     }
