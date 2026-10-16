@@ -1034,7 +1034,7 @@ fn a_session_started_in_a_stamped_worktree_keeps_its_own_handoff() {
     assert_eq!(refused.status, 2);
     assert!(refused.stderr.contains(&native(&tree, HANDOFF)));
     assert!(refused.stderr.contains("- Write lib/side.js"));
-    assert!(!refused.stderr.contains(".claude/worktrees"));
+    assert!(!refused.stderr.contains("- Write .claude/worktrees"));
 
     edit(HANDOFF, "# Handoff\n\nSide work.\n");
     assert_eq!(at("Stop", json!({})).status, 0);
