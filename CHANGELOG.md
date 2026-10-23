@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-23
+
 ### Added
 
 - `checks.oracle` names the command that proves a repo works, in
