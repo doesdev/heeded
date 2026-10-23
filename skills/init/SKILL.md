@@ -45,7 +45,9 @@ Then:
   proves this repo works, and what a check must never do
   (touch hardware, hit a live service). Wire that up as
   `check`. Do not invent a check that passes without testing
-  anything.
+  anything. If the repo already has a command that does this
+  (`just check`, `cargo test`), offer to name it as
+  `checks.oracle` in `.heeded.json` instead.
 - A `created` `plan.md` is a blank template. Offer to write
   it with the user; do not fill it with guesses.
 - The repo is now gated: a session that changes it cannot

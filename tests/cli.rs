@@ -268,6 +268,23 @@ fn init_says_so_when_the_repo_has_no_check() {
 }
 
 #[test]
+fn init_stamps_no_package_json_for_another_oracle() {
+    let lab = Lab::new("init-oracle");
+    let repo = lab.repo(false);
+    write(
+        &lab.home,
+        "config.json",
+        &json!({ "checks": { "oracle": "just check" } }).to_string(),
+    );
+
+    let ran = lab.bin(&repo, &["init"]);
+    assert_eq!(ran.status, 0, "{}", ran.stderr);
+    assert!(!ran.stdout.contains("package.json"), "{}", ran.stdout);
+    assert!(!exists(&repo.join("package.json")));
+    assert!(!status(&repo).contains(&"package.json".to_string()));
+}
+
+#[test]
 fn heeded_fails_with_a_reason_not_a_stack() {
     let lab = Lab::new("fails");
     let repo = lab.repo(false);
@@ -458,7 +475,7 @@ fn config_writes_the_user_config_once_and_shows_what_is_in_effect() {
         json!({
             "permission": { "commit": "ask", "push": "ask" },
             "identity": { "name": global("user.name"), "email": global("user.email"), "attribution": "any" },
-            "checks": { "changelog": false, "quiet": [] },
+            "checks": { "oracle": "npm run check", "changelog": false, "quiet": [] },
             "directives": {}
         })
     );
@@ -495,7 +512,7 @@ fn config_global_and_local_write_the_file_from_answers() {
         &home,
         &repo,
         &["config", "--global"],
-        Some("allow\n\n\n\n\non\n\nvoice\nShort.\n"),
+        Some("allow\n\n\n\n\n\non\n\nvoice\nShort.\n"),
     );
     let written: serde_json::Value =
         serde_json::from_str(&read(&home.join("config.json"))).unwrap();
@@ -513,7 +530,7 @@ fn config_global_and_local_write_the_file_from_answers() {
         &home,
         &repo,
         &["config", "--local"],
-        Some("ask\n\n\n\n\n\n\nvoice\noff\n"),
+        Some("ask\n\n\n\n\n\n\n\nvoice\noff\n"),
     );
     let marker: serde_json::Value = serde_json::from_str(&read(&repo.join(MARKER))).unwrap();
     assert_eq!(local.status, 0, "{}", local.stderr);

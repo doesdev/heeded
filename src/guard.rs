@@ -357,6 +357,28 @@ the main session will ask."
 
         let repo = stamped.unwrap_or(repo);
         let settings = settings_for(&repo, self.home);
+        let what = |act: &str| match act {
+            "commit" => "a commit",
+            "push" => "something that leaves the machine",
+            _ => "changing heeded settings",
+        };
+        let given = |act: &str| match act {
+            "settings" => "ask",
+            _ => settings["permission"][act].as_str().unwrap_or("ask"),
+        };
+        let barred: Vec<&str> = own
+            .iter()
+            .filter(|act| given(act) == "forbidden")
+            .map(|act| what(act))
+            .collect();
+        if !barred.is_empty() {
+            return Outcome::deny(format!(
+                "heeded: {} is forbidden here by the owner's config. Do not try another way; \
+leave it to the owner.",
+                barred.join(" and ")
+            ));
+        }
+
         let id = event.id.as_deref().unwrap_or("undefined");
         if own.contains(&"commit")
             && let Some(refusal) = self.commit(id, &repo, &where_, command, &settings, !notes)
@@ -364,16 +386,9 @@ the main session will ask."
             return Outcome::deny(refusal);
         }
 
-        let what = |act: &str| match act {
-            "commit" => "a commit",
-            "push" => "something that leaves the machine",
-            _ => "changing heeded settings",
-        };
         let asks: Vec<&str> = own
             .into_iter()
-            .filter(|act| {
-                *act == "settings" || settings["permission"][*act].as_str() != Some("allow")
-            })
+            .filter(|act| given(act) != "allow")
             .map(what)
             .collect();
 

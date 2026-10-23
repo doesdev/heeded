@@ -5,14 +5,14 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value, json};
 
-use crate::consts::{DIRECTIVE_MAX, MARKER, SETTINGS};
+use crate::consts::{DIRECTIVE_MAX, MARKER, ORACLE, SETTINGS};
 use crate::paths::{resolve, within};
 
 pub fn defaults() -> Value {
     json!({
         "permission": { "commit": "ask", "push": "ask" },
         "identity": { "name": "", "email": "", "attribution": "any" },
-        "checks": { "changelog": false, "quiet": [] },
+        "checks": { "oracle": ORACLE, "changelog": false, "quiet": [] },
         "directives": {}
     })
 }
@@ -137,6 +137,14 @@ pub fn directives_of(settings: &Value) -> Vec<(String, String)> {
         .map(|(name, directive)| (name.clone(), clip(text_of(directive))))
         .filter(|(_, text)| !text.is_empty())
         .collect()
+}
+
+/// The command that proves the repo works; an empty one is the default.
+pub fn oracle_of(settings: &Value) -> &str {
+    match get_str(settings, "checks", "oracle").trim() {
+        "" => ORACLE,
+        said => said,
+    }
 }
 
 pub fn get_str<'a>(settings: &'a Value, section: &str, key: &str) -> &'a str {

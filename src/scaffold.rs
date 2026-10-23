@@ -108,11 +108,13 @@ fn hide(root: &Path, patterns: &[String]) -> Result<Vec<(PathBuf, &'static str)>
 
 /// An existing marker wins over the notes folder asked for, and only what
 /// this run created is hidden: what was already there is the repo's choice.
+/// A `package.json` is only stamped while the oracle is `npm run check`.
 pub fn scaffold(
     root: &Path,
     asked: Option<&str>,
     private: Option<&str>,
     tracked: bool,
+    npm: bool,
 ) -> Result<Stamped, String> {
     let marker = root.join(MARKER);
     let mut wanted = serde_json::json!({ "notes": asked.unwrap_or(NOTES) });
@@ -133,7 +135,7 @@ pub fn scaffold(
     let fresh: Vec<String> = [
         (marked == "created").then(|| format!("/{MARKER}")),
         (!notes.exists()).then(|| format!("/{}/", within(root, &notes))),
-        (!root.join(MANIFEST).exists()).then(|| format!("/{MANIFEST}")),
+        (npm && !root.join(MANIFEST).exists()).then(|| format!("/{MANIFEST}")),
     ]
     .into_iter()
     .flatten()
@@ -148,7 +150,9 @@ pub fn scaffold(
         stamped.extend(stamp(&[(".gitignore", IGNORE_ALL)], &private)?);
     }
     stamped.extend(stamp(&handoff, &private)?);
-    stamped.extend(stamp(&ROOT_TEMPLATES, root)?);
+    if npm {
+        stamped.extend(stamp(&ROOT_TEMPLATES, root)?);
+    }
     if !tracked {
         stamped.extend(hide(root, &fresh)?);
     }
@@ -158,7 +162,7 @@ pub fn scaffold(
             .into_iter()
             .map(|(file, did)| (within(root, &file), did))
             .collect(),
-        check: has_check(root),
+        check: !npm || has_check(root),
         notes,
         private,
     })

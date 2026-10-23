@@ -1,6 +1,6 @@
 # Plan: heeded as a portable workflow plugin
 
-Last updated: 2026-10-16T21:04Z
+Last updated: 2026-10-23T03:10Z
 
 ## Why this repo, why now
 
@@ -187,6 +187,8 @@ One record each in `docs/decisions/`:
     against its sums, then updates the plugin.
 33. 0033: committing only the handoff is not work; a session
     started in a stamped worktree keeps that worktree's handoff.
+34. 0034: the oracle is a setting, `checks.oracle`; commit and
+    push can be `forbidden`.
 
 ## Constraints added on 2026-10-09
 

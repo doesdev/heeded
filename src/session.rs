@@ -243,12 +243,12 @@ before stopping, unless the owner asked for this repo to opt out."
     }
 }
 
-pub fn notes_note(notes: &str, private: Option<&str>) -> String {
+pub fn notes_note(notes: &str, private: Option<&str>, oracle: &str) -> String {
     let Some(private) = private else {
         return format!(
             "heeded: this repo's working notes are in {notes}. Before anything else read \
 handoff.md there (what the last session did and left open) and plan.md (current \
-intent). decisions/ holds one record per decision. `npm run check` is the oracle."
+intent). decisions/ holds one record per decision. `{oracle}` is the oracle."
         );
     };
 
@@ -257,7 +257,7 @@ intent). decisions/ holds one record per decision. `npm run check` is the oracle
 Before anything else read handoff.md in the private notes (what the last session did and \
 left open) and plan.md in the notes (current intent). decisions/ holds one record per \
 decision. The private notes never go into git; what must not be published goes there. \
-`npm run check` is the oracle."
+`{oracle}` is the oracle."
     )
 }
 

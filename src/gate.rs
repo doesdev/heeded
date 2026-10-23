@@ -13,7 +13,7 @@ use crate::session::{
     Entry, OUTSIDE, State, UNTRACKED, decide, directives_note, leftover_note, live, notes_note,
     open, reason_for, to_move, track,
 };
-use crate::settings::{directives_of, settings_for};
+use crate::settings::{directives_of, oracle_of, settings_for};
 use crate::snapshot::{Snapshot, checkout_of, moved, ours_of, project_side, snapshot};
 use crate::store::Store;
 
@@ -114,7 +114,7 @@ impl Turn<'_> {
             .map(|dir| dir.display().to_string())
             .filter(|dir| dir != notes);
         let parts = [
-            notes_note(notes, private.as_deref()),
+            notes_note(notes, private.as_deref(), oracle_of(&settings)),
             directives_note(&directives_of(&settings)),
             if left.is_empty() {
                 String::new()

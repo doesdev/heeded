@@ -32,16 +32,16 @@ const fn text(key: &'static str, say: &'static str) -> Step {
     }
 }
 
-pub const STEPS: [Step; 7] = [
+pub const STEPS: [Step; 8] = [
     choice(
         "permission.commit",
-        "Commit without asking you first",
-        &["ask", "allow"],
+        "Commit without asking you first, or never",
+        &["ask", "allow", "forbidden"],
     ),
     choice(
         "permission.push",
-        "Push, tag, publish or release without asking you first",
-        &["ask", "allow"],
+        "Push, tag, publish or release without asking you first, or never",
+        &["ask", "allow", "forbidden"],
     ),
     text("identity.name", "Author name every commit must carry"),
     text("identity.email", "Author email every commit must carry"),
@@ -50,6 +50,7 @@ pub const STEPS: [Step; 7] = [
         "Co-Authored-By lines on commits",
         &["any", "required", "forbidden"],
     ),
+    text("checks.oracle", "Command that proves the repo works"),
     Step {
         key: "checks.changelog",
         say: "Remind once when a commit has no changelog line",
@@ -345,7 +346,7 @@ mod tests {
 
     #[test]
     fn pick_reads_an_answer_for_each_kind_of_step() {
-        let [commit, _, name, _, attribution, changelog, quiet] = &STEPS;
+        let [commit, _, name, _, attribution, oracle, changelog, quiet] = &STEPS;
         let cases = [
             (commit, "allow", false, Pick::Set(json!("allow"))),
             (commit, "al", false, Pick::Set(json!("allow"))),
@@ -353,7 +354,9 @@ mod tests {
             (commit, "nope", false, Pick::Invalid),
             (commit, "inherit", true, Pick::Inherit),
             (commit, "inherit", false, Pick::Invalid),
+            (commit, "f", false, Pick::Set(json!("forbidden"))),
             (attribution, "f", false, Pick::Set(json!("forbidden"))),
+            (oracle, "just check", false, Pick::Set(json!("just check"))),
             (changelog, "on", false, Pick::Set(json!(true))),
             (changelog, "off", false, Pick::Set(json!(false))),
             (name, "A C", false, Pick::Set(json!("A C"))),
@@ -402,6 +405,7 @@ mod tests {
             "A C",
             "-",
             "f",
+            "just check",
             "on",
             "e2e/, xtask/",
             "voice",
@@ -429,12 +433,12 @@ mod tests {
             json!({
                 "permission": { "commit": "allow", "push": "ask" },
                 "identity": { "name": "A C", "email": "", "attribution": "forbidden" },
-                "checks": { "changelog": true, "quiet": ["e2e/", "xtask/"] },
+                "checks": { "oracle": "just check", "changelog": true, "quiet": ["e2e/", "xtask/"] },
                 "directives": { "voice": "Short.", "style": { "file": "style.md" } },
                 "extra": 1
             })
         );
-        assert!(said.contains(&"One of: ask/allow.".to_string()));
+        assert!(said.contains(&"One of: ask/allow/forbidden.".to_string()));
         assert!(said.contains(&"A name is letters, digits and dashes.".to_string()));
         assert!(said.contains(&"Not an answer; nothing changed.".to_string()));
     }
@@ -446,7 +450,7 @@ mod tests {
         let start = json!({ "notes": ".agent", "permission": { "commit": "ask" }, "directives": { "voice": "x" } });
         let mut asked: Vec<String> = vec![];
         let mut answers: Vec<&str> = vec![
-            "inherit", "", "", "", "", "", "web/e2e/", "voice", "off", "tone", "remove", "",
+            "inherit", "", "", "", "", "", "", "web/e2e/", "voice", "off", "tone", "remove", "",
         ];
         answers.reverse();
         let mut ask = |question: &str| {
@@ -459,7 +463,7 @@ mod tests {
             next,
             json!({ "notes": ".agent", "checks": { "quiet": ["web/e2e/"] }, "directives": { "voice": false } })
         );
-        assert!(asked[0].contains("[ask/allow/inherit] (now ask)"));
+        assert!(asked[0].contains("[ask/allow/forbidden/inherit] (now ask)"));
         assert!(asked[1].contains("(now inherited: ask)"));
 
         let (mut ask, _) = scripted(&[]);

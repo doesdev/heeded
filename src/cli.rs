@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{Value, json};
 
 use crate::clock::{iso, minute, now_ms};
-use crate::consts::{HANDOFF, JOURNAL, MARKER, NOTES, REWORK, SETTINGS, home_dir};
+use crate::consts::{HANDOFF, JOURNAL, MARKER, NOTES, ORACLE, REWORK, SETTINGS, home_dir};
 use crate::git::{git, root_of};
 use crate::journal::{Journal, since_handoff};
 use crate::notes::{notes_of, private_of};
@@ -15,7 +15,7 @@ use crate::paths::resolve;
 use crate::rework::{CLASSES, OUTCOMES, check_rework};
 use crate::scaffold::scaffold;
 use crate::session::listed_values;
-use crate::settings::{defaults, directives_of, read_json, settings_for, user_settings};
+use crate::settings::{defaults, directives_of, oracle_of, read_json, settings_for, user_settings};
 use crate::update::update;
 use crate::wizard::walk;
 
@@ -44,7 +44,8 @@ fn help_for(topic: &str) -> Option<String> {
   Stamps a repo so heeded's hooks gate it. Writes {MARKER} at the root,
   the notes folder it names (default {NOTES}) with handoff.md, plan.md,
   decisions/ and rework.jsonl, and a package.json with a failing check
-  script if the repo has none. Never overwrites.
+  script if the repo has none and checks.oracle is npm run check.
+  Never overwrites.
 
   What it creates is hidden from this clone's git (.git/info/exclude)
   unless --tracked. --notes puts the notes somewhere else, such as a
@@ -167,11 +168,13 @@ fn stamped(root: &Path) -> Result<PathBuf, String> {
 }
 
 fn init(root: &Path, args: &Args) -> Result<(), String> {
+    let npm = oracle_of(&settings_for(root, &home_dir())) == ORACLE;
     let done = scaffold(
         root,
         args.value("notes"),
         args.value("private"),
         args.has("tracked"),
+        npm,
     )?;
 
     println!("{}", root.display());

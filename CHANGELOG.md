@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- `checks.oracle` names the command that proves a repo works, in
+  your config or the repo's. Sessions are told it instead of
+  `npm run check`, and `heeded init` no longer stamps a
+  `package.json` when it is something else.
+- `permission.commit` and `permission.push` can be `forbidden`: a
+  session's commit or push is then refused instead of asked.
+
 ## [0.16.0] - 2026-10-16
 
 ### Fixed

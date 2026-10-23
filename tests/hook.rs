@@ -482,6 +482,37 @@ fn a_stamped_session_is_told_the_directives_after_the_notes() {
     assert_eq!(lab.session(&lab.repo(false), "d3").start().stdout, "");
 }
 
+#[test]
+fn a_stamped_session_is_told_the_oracle_in_effect() {
+    let lab = Lab::new("oracle");
+    let repo = lab.repo(true);
+    let start = |id: &str| lab.session(&repo, id).start().stdout;
+    let cases = [
+        (json!({}), "`npm run check` is the oracle"),
+        (
+            json!({ "checks": { "oracle": "  " } }),
+            "`npm run check` is the oracle",
+        ),
+        (
+            json!({ "checks": { "oracle": "just check" } }),
+            "`just check` is the oracle",
+        ),
+    ];
+
+    for (at, (config, said)) in cases.iter().enumerate() {
+        write(&lab.home, "config.json", &config.to_string());
+        let told = start(&format!("o{at}"));
+        assert!(told.contains(said), "{config}: {told}");
+    }
+
+    write(
+        &repo,
+        MARKER,
+        &json!({ "notes": NOTES, "checks": { "oracle": "cargo test" } }).to_string(),
+    );
+    assert!(start("o9").contains("`cargo test` is the oracle"));
+}
+
 // cursor
 
 #[test]
@@ -659,6 +690,93 @@ fn the_guard_asks_refuses_or_stays_out_of_the_way() {
     git(repo, &["config", "user.email", "someone@else.dev"]);
     assert_eq!(bash("git commit -m \"Add a\""), (None, String::new()));
     assert_eq!(bash("git commit -m \"Add a\" && git push").0, ask);
+}
+
+#[test]
+fn the_guard_refuses_what_the_owner_forbids() {
+    let lab = Lab::new("guard-forbid");
+    let session = lab.started(true);
+    let repo = &session.repo;
+    write(
+        repo, "lib/a.js", "x
+",
+    );
+    git(repo, &["add", "-A"]);
+    let ask = Some("ask".to_string());
+    let deny = Some("deny".to_string());
+    let cases = [
+        (
+            json!({ "commit": "forbidden" }),
+            "git commit -m x",
+            &deny,
+            "a commit is forbidden",
+        ),
+        (
+            json!({ "commit": "forbidden" }),
+            "git push",
+            &ask,
+            "needs the owner's OK",
+        ),
+        (
+            json!({ "push": "forbidden" }),
+            "git push",
+            &deny,
+            "leaves the machine is forbidden",
+        ),
+        (
+            json!({ "push": "forbidden" }),
+            "gh release create 1.0.0",
+            &deny,
+            "is forbidden",
+        ),
+        (
+            json!({ "push": "forbidden", "commit": "allow" }),
+            "git commit -m x",
+            &None,
+            "",
+        ),
+        (
+            json!({ "commit": "forbidden", "push": "forbidden" }),
+            "git commit -m x && git push",
+            &deny,
+            "a commit and something that leaves the machine is forbidden",
+        ),
+        (
+            json!({ "commit": "forbidden" }),
+            "heeded config --local",
+            &ask,
+            "changing heeded",
+        ),
+    ];
+
+    for (permission, command, expected, said) in cases {
+        write(
+            repo,
+            MARKER,
+            &json!({ "notes": NOTES, "permission": permission }).to_string(),
+        );
+        let ran = decision(&session.hook(
+            "PreToolUse",
+            json!({ "tool_name": "Bash", "tool_input": { "command": command } }),
+        ));
+        assert_eq!(&ran.0, expected, "{permission} {command}");
+        assert!(ran.1.contains(said), "{permission} {command}: {}", ran.1);
+    }
+
+    // forbidden in the owner's config holds with no word from the repo
+    write(repo, MARKER, &json!({ "notes": NOTES }).to_string());
+    write(
+        &lab.home,
+        "config.json",
+        &json!({ "permission": { "push": "forbidden" } }).to_string(),
+    );
+    let ran = session.hook(
+        "PreToolUse",
+        json!({ "tool_name": "Bash", "tool_input": { "command": "git push" }, "agent_id": "a1" }),
+    );
+    let (got, why) = decision(&ran);
+    assert_eq!(got, deny);
+    assert!(!why.contains("A subagent cannot"), "{why}");
 }
 
 #[test]

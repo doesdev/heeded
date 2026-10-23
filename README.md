@@ -112,18 +112,21 @@ shows what is in effect in the repo you are in.
 {
   "permission": { "commit": "ask", "push": "ask" },
   "identity": { "name": "", "email": "", "attribution": "any" },
-  "checks": { "changelog": false, "quiet": [] },
+  "checks": { "oracle": "npm run check", "changelog": false, "quiet": [] },
   "directives": {}
 }
 ```
 
 Those are the defaults. `ask` means you are asked before a
 session commits, or before anything leaves the machine (push,
-tag, publish, release); `allow` means you are not. With an
+tag, publish, release); `allow` means you are not; `forbidden`
+means it is refused outright. With an
 identity set, a commit under any other git author is refused.
 `attribution` is `any`, `required` or `forbidden`, and is about
 `Co-Authored-By` lines. Commits are also scanned for secrets.
-With `checks.changelog` on, a commit that touches no
+`checks.oracle` is the command a session is told proves the repo
+works; `heeded init` only stamps a `package.json` for it while it is
+`npm run check`. With `checks.changelog` on, a commit that touches no
 `CHANGELOG.md` is refused once with a reminder, and goes through
 when the same command is run again. `checks.quiet` lists paths that
 never need a changelog line, such as test folders.

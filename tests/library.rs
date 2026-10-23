@@ -149,7 +149,7 @@ fn settings_layer_the_repo_over_the_user_over_the_defaults() {
         json!({
             "permission": { "commit": "ask", "push": "allow" },
             "identity": { "name": "", "email": "a@c.dev", "attribution": "any" },
-            "checks": { "changelog": false, "quiet": [] },
+            "checks": { "oracle": "npm run check", "changelog": false, "quiet": [] },
             "directives": {}
         })
     );

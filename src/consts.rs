@@ -8,6 +8,7 @@ pub const HANDOFF: &str = "handoff.md";
 pub const JOURNAL: &str = "journal.jsonl";
 pub const REWORK: &str = "rework.jsonl";
 pub const SETTINGS: &str = "config.json";
+pub const ORACLE: &str = "npm run check";
 pub const JOURNAL_MAX: usize = 500;
 pub const MAX_BLOCKS: u64 = 3;
 pub const DIRECTIVE_MAX: usize = 4000;
